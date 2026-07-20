@@ -1,0 +1,26 @@
+{
+  "name": "citeoryx-admin",
+  "version": "2.0.1",
+  "description": "Citeoryx WordPress Plugin Admin UI",
+  "private": true,
+  "scripts": {
+    "build": "wp-scripts build --webpack-src-dir=assets/src/admin",
+    "start": "wp-scripts start --webpack-src-dir=assets/src/admin",
+    "lint:js": "wp-scripts lint-js",
+    "lint:css": "wp-scripts lint-style",
+    "test": "wp-scripts test-unit-js"
+  },
+  "devDependencies": {
+    "@wordpress/components": "^28.0.0",
+    "@wordpress/data": "^10.0.0",
+    "@wordpress/api-fetch": "^7.0.0",
+    "@wordpress/element": "^6.0.0",
+    "@wordpress/i18n": "^5.0.0",
+    "@wordpress/scripts": "^27.0.0",
+    "@wordpress/notices": "^5.0.0",
+    "@wordpress/icons": "^9.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "dependencies": {}
+}
