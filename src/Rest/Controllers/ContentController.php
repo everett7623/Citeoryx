@@ -43,7 +43,7 @@ class ContentController extends BaseController {
 			array(
 				array(
 					'methods'             => 'GET',
-					'callback'            => array( $this, 'get_item' ),
+					'callback'            => array( $this, 'get_content_item' ),
 					'permission_callback' => array( $this, 'item_permissions_check' ),
 				),
 			)
@@ -136,7 +136,7 @@ class ContentController extends BaseController {
 	 * @param WP_REST_Request $request Request.
 	 * @return \WP_REST_Response
 	 */
-	public function get_item( WP_REST_Request $request ): \WP_REST_Response {
+	public function get_content_item( WP_REST_Request $request ): \WP_REST_Response {
 		$repo = $this->container->get( ContentRepository::class );
 		$item = $repo->find( (int) $request->get_param( 'id' ) );
 
