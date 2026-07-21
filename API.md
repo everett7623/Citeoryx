@@ -290,6 +290,8 @@ Search Console imports run daily for the most recently finalized day (three-day 
 
 The Google and Bing status responses include a `health` object with `status`, `message`, `checked_at`, `consecutive_failures`, and `last_success_at`. A successful validation or scheduled import request resets the failure streak; two consecutive failures produce an admin notice. A valid response with no rows or sites is treated as healthy.
 
+Google and Bing requests retry transient network errors, HTTP 429, and HTTP 5xx responses up to three total attempts. Backoff starts at 250 ms, honors numeric or HTTP-date `Retry-After` values, and caps each synchronous delay at two seconds. Other HTTP 4xx responses are returned immediately without retrying.
+
 `POST /integrations/ai/settings` body:
 
 ```json

@@ -8,6 +8,7 @@
 namespace Citeoryx\Integrations\SearchConsole;
 
 use Citeoryx\Infrastructure\Encryption\KeyStore;
+use Citeoryx\Infrastructure\Http\RetryPolicy;
 
 /**
  * Fetches search performance data from the Bing Webmaster Tools API.
@@ -28,10 +29,18 @@ class BingWebmasterTools implements SearchConsoleInterface {
 	private ?string $last_error = null;
 
 	/**
-	 * Constructor.
+	 * @var RetryPolicy
 	 */
-	public function __construct() {
-		$this->site_url = trailingslashit( get_option( 'siteurl', home_url() ) );
+	private RetryPolicy $retry_policy;
+
+	/**
+	 * Constructor.
+	 *
+	 * @param RetryPolicy|null $retry_policy HTTP retry policy.
+	 */
+	public function __construct( ?RetryPolicy $retry_policy = null ) {
+		$this->retry_policy = $retry_policy ?: new RetryPolicy();
+		$this->site_url     = trailingslashit( get_option( 'siteurl', home_url() ) );
 	}
 
 	/**
@@ -224,17 +233,20 @@ class BingWebmasterTools implements SearchConsoleInterface {
 		$separator = strpos( $path, '?' ) === false ? '?' : '&';
 		$url       = self::API_BASE . $path . $separator . 'apikey=' . rawurlencode( $api_key );
 
-		$response = wp_remote_get(
-			$url,
-			array(
-				'headers' => array( 'Accept' => 'application/json' ),
-				'timeout' => 20,
+		$response = $this->retry_policy->execute(
+			static fn () => wp_remote_get(
+				$url,
+				array(
+					'headers' => array( 'Accept' => 'application/json' ),
+					'timeout' => 20,
+				)
 			)
 		);
 
 		if ( is_wp_error( $response ) ) {
 			$this->last_error = sprintf(
-				'Bing Webmaster Tools request failed (%s).',
+				'Bing Webmaster Tools request failed after %1$d attempt(s) (%2$s).',
+				$this->retry_policy->get_last_attempt_count(),
 				sanitize_key( (string) $response->get_error_code() )
 			);
 			return array();
@@ -242,7 +254,11 @@ class BingWebmasterTools implements SearchConsoleInterface {
 
 		$code = wp_remote_retrieve_response_code( $response );
 		if ( $code < 200 || $code >= 300 ) {
-			$this->last_error = sprintf( 'Bing Webmaster Tools returned HTTP %d.', $code );
+			$this->last_error = sprintf(
+				'Bing Webmaster Tools returned HTTP %1$d after %2$d attempt(s).',
+				$code,
+				$this->retry_policy->get_last_attempt_count()
+			);
 			return array();
 		}
 
