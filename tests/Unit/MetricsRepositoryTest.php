@@ -79,9 +79,30 @@ class MetricsRepositoryTest extends WP_UnitTestCase {
 			$date,
 			$date,
 			array(
-				array( 'query' => 'alpha', 'country' => 'usa', 'device' => 'desktop', 'impressions' => 100, 'clicks' => 10, 'position' => 2 ),
-				array( 'query' => 'alpha', 'country' => 'usa', 'device' => 'mobile', 'impressions' => 50, 'clicks' => 5, 'position' => 4 ),
-				array( 'query' => 'beta', 'country' => 'deu', 'device' => 'mobile', 'impressions' => 30, 'clicks' => 3, 'position' => 6 ),
+				array(
+					'query'       => 'alpha',
+					'country'     => 'usa',
+					'device'      => 'desktop',
+					'impressions' => 100,
+					'clicks'      => 10,
+					'position'    => 2,
+				),
+				array(
+					'query'       => 'alpha',
+					'country'     => 'usa',
+					'device'      => 'mobile',
+					'impressions' => 50,
+					'clicks'      => 5,
+					'position'    => 4,
+				),
+				array(
+					'query'       => 'beta',
+					'country'     => 'deu',
+					'device'      => 'mobile',
+					'impressions' => 30,
+					'clicks'      => 3,
+					'position'    => 6,
+				),
 			)
 		);
 		$this->repository->save_query_pages(
@@ -90,7 +111,12 @@ class MetricsRepositoryTest extends WP_UnitTestCase {
 			$date,
 			$date,
 			array(
-				array( 'query' => 'alpha', 'impressions' => 20, 'clicks' => 2, 'position' => 3 ),
+				array(
+					'query'       => 'alpha',
+					'impressions' => 20,
+					'clicks'      => 2,
+					'position'    => 3,
+				),
 			)
 		);
 
@@ -112,8 +138,26 @@ class MetricsRepositoryTest extends WP_UnitTestCase {
 	 */
 	public function test_site_aggregate_includes_daily_history(): void {
 		$date = gmdate( 'Y-m-d' );
-		$this->repository->save( 1, $date, 'google_search_console', array( 'impressions' => 100, 'clicks' => 10, 'position_avg' => 2 ) );
-		$this->repository->save( 2, $date, 'bing_webmaster_tools', array( 'impressions' => 50, 'clicks' => 5, 'position_avg' => 4 ) );
+		$this->repository->save(
+			1,
+			$date,
+			'google_search_console',
+			array(
+				'impressions' => 100,
+				'clicks'      => 10,
+				'position_avg' => 2,
+			)
+		);
+		$this->repository->save(
+			2,
+			$date,
+			'bing_webmaster_tools',
+			array(
+				'impressions' => 50,
+				'clicks'      => 5,
+				'position_avg' => 4,
+			)
+		);
 
 		$aggregate = $this->repository->aggregate_site( 28 );
 

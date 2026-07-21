@@ -34,11 +34,11 @@ class SearchPerformanceImporter {
 		$date              = $date ?: gmdate( 'Y-m-d', strtotime( '-3 days' ) );
 		$items             = $this->content_repo->list_after_id( $after_id, $limit );
 		$results           = array(
-			'processed'     => 0,
-			'imported'      => 0,
+			'processed'      => 0,
+			'imported'       => 0,
 			'dimension_rows' => 0,
-			'last_id'       => $after_id,
-			'complete'      => count( $items ) < $limit,
+			'last_id'        => $after_id,
+			'complete'       => count( $items ) < $limit,
 		);
 		$provider_failures = array();
 		$provider_success  = array();

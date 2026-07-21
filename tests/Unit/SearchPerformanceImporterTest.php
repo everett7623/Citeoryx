@@ -51,8 +51,8 @@ class SearchPerformanceImporterTest extends WP_UnitTestCase {
 				return array( $this->item );
 			}
 		};
-		$metrics_repo = new class() extends MetricsRepository {
-			public array $daily = array();
+		$metrics_repo        = new class() extends MetricsRepository {
+			public array $daily      = array();
 			public array $dimensions = array();
 
 			public function save( int $content_id, string $date, string $source, array $metrics ): int {
@@ -65,7 +65,7 @@ class SearchPerformanceImporterTest extends WP_UnitTestCase {
 				return count( $rows );
 			}
 		};
-		$google = new class() extends GoogleSearchConsole {
+		$google              = new class() extends GoogleSearchConsole {
 			public array $options = array();
 
 			public function __construct() {
@@ -89,7 +89,7 @@ class SearchPerformanceImporterTest extends WP_UnitTestCase {
 				);
 			}
 		};
-		$bing = new class() extends BingWebmasterTools {
+		$bing                = new class() extends BingWebmasterTools {
 			public function __construct() {
 			}
 

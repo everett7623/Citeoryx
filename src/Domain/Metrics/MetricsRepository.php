@@ -119,8 +119,8 @@ class MetricsRepository {
 				'query_hash'   => $this->query_hash( $query ),
 				'country_code' => $country,
 				'device'       => $device,
-				'period_start'  => $period_start,
-				'period_end'    => $period_end,
+				'period_start' => $period_start,
+				'period_end'   => $period_end,
 				'impressions'  => $impressions,
 				'clicks'       => $clicks,
 				'ctr'          => $impressions > 0 ? $clicks / $impressions : 0.0,
@@ -259,8 +259,8 @@ class MetricsRepository {
 
 		return array_map(
 			function ( array $row ): array {
-				$normalized                = $this->normalize_aggregate( $row );
-				$normalized['metric_date'] = (string) $row['metric_date'];
+				$normalized                 = $this->normalize_aggregate( $row );
+				$normalized['metric_date']  = (string) $row['metric_date'];
 				$normalized['position_avg'] = (float) $row['impressions'] > 0
 					? (float) $row['position_weight'] / (float) $row['impressions']
 					: null;
@@ -387,9 +387,9 @@ class MetricsRepository {
 		$items = array_values(
 			array_map(
 				static function ( array $item ): array {
-					$impressions = (float) $item['impressions'];
-					$clicks      = (float) $item['clicks'];
-					$item['ctr'] = $impressions > 0 ? $clicks / $impressions : 0.0;
+					$impressions          = (float) $item['impressions'];
+					$clicks               = (float) $item['clicks'];
+					$item['ctr']          = $impressions > 0 ? $clicks / $impressions : 0.0;
 					$item['position_avg'] = $impressions > 0
 						? (float) $item['position_weight'] / $impressions
 						: null;
