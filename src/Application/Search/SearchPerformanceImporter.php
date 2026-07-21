@@ -32,9 +32,9 @@ class SearchPerformanceImporter {
 	}
 
 	public function import_batch( int $after_id = 0, int $limit = 20, ?string $date = null ): array {
-		$date    = $date ?: gmdate( 'Y-m-d', strtotime( '-3 days' ) );
-		$items   = $this->content_repo->list_after_id( $after_id, $limit );
-		$results = array(
+		$date              = $date ?: gmdate( 'Y-m-d', strtotime( '-3 days' ) );
+		$items             = $this->content_repo->list_after_id( $after_id, $limit );
+		$results           = array(
 			'processed' => 0,
 			'imported'  => 0,
 			'last_id'   => $after_id,

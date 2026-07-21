@@ -214,7 +214,7 @@ class BingWebmasterTools implements SearchConsoleInterface {
 	 */
 	private function request( string $path ): array {
 		$this->last_error = null;
-		$api_key = $this->get_api_key();
+		$api_key          = $this->get_api_key();
 		if ( ! $api_key ) {
 			$this->last_error = 'Bing Webmaster Tools API key is unavailable.';
 			return array();

@@ -69,11 +69,11 @@ class SearchIntegrationHealth {
 		$state = array_merge(
 			$state,
 			array(
-				'status'              => 'healthy',
-				'message'             => $message ? sanitize_text_field( $message ) : null,
-				'checked_at'          => $now,
+				'status'               => 'healthy',
+				'message'              => $message ? sanitize_text_field( $message ) : null,
+				'checked_at'           => $now,
 				'consecutive_failures' => 0,
-				'last_success_at'     => $now,
+				'last_success_at'      => $now,
 			)
 		);
 		$this->save( $provider, $state );
@@ -97,9 +97,9 @@ class SearchIntegrationHealth {
 		$state = array_merge(
 			$state,
 			array(
-				'status'              => 'error',
-				'message'             => $this->truncate( $message ),
-				'checked_at'          => current_time( 'mysql' ),
+				'status'               => 'error',
+				'message'              => $this->truncate( $message ),
+				'checked_at'           => current_time( 'mysql' ),
 				'consecutive_failures' => (int) $state['consecutive_failures'] + 1,
 			)
 		);
@@ -180,7 +180,7 @@ class SearchIntegrationHealth {
 		$state['consecutive_failures'] = max( 0, (int) $state['consecutive_failures'] );
 		$state['message']              = $state['message'] ? $this->truncate( (string) $state['message'] ) : null;
 		$state['checked_at']           = $state['checked_at'] ? sanitize_text_field( (string) $state['checked_at'] ) : null;
-		$state['last_success_at'] = $state['last_success_at']
+		$state['last_success_at']      = $state['last_success_at']
 			? sanitize_text_field( (string) $state['last_success_at'] )
 			: null;
 		return $state;
@@ -194,8 +194,8 @@ class SearchIntegrationHealth {
 	 * @return void
 	 */
 	private function save( string $provider, array $state ): void {
-		$all            = get_option( self::OPTION, array() );
-		$all            = is_array( $all ) ? $all : array();
+		$all              = get_option( self::OPTION, array() );
+		$all              = is_array( $all ) ? $all : array();
 		$all[ $provider ] = $this->normalize( $state );
 		update_option( self::OPTION, $all, false );
 	}

@@ -178,7 +178,7 @@ class GoogleSearchConsole implements SearchConsoleInterface {
 	 */
 	private function request( string $method, string $path, array $body = array() ): array {
 		$this->last_error = null;
-		$token = $this->oauth->get_access_token();
+		$token            = $this->oauth->get_access_token();
 		if ( ! $token ) {
 			$this->last_error = 'Google Search Console access token is unavailable.';
 			return array();
