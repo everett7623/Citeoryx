@@ -82,9 +82,6 @@ GitHub Actions 会对 Node.js 前端检查以及 PHP 8.0–8.4 / WordPress 6.6 �
 		<testsuite name="Unit">
 			<directory suffix="Test.php">tests/Unit</directory>
 		</testsuite>
-		<testsuite name="Integration">
-			<directory suffix="Test.php">tests/Integration</directory>
-		</testsuite>
 	</testsuites>
 </phpunit>
 ```
