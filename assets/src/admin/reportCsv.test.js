@@ -18,3 +18,38 @@ test( 'CSV export neutralizes spreadsheet formulas', () => {
 
 	expect( csv ).toContain( '"\'=SUM(1,1)"' );
 } );
+
+test( 'CSV export includes search dimension summaries', () => {
+	const csv = buildReportCsv( {
+		generated_at: '2026-07-22 12:00:00',
+		content: {
+			total: 1,
+			average_health_score: 80,
+			average_ai_readiness_score: 70,
+			status_counts: [],
+		},
+		issues: {
+			open_total: 0,
+			severity_counts: [],
+			category_counts: [],
+		},
+		performance: {
+			dimensions: {
+				queries: [
+					{
+						label: 'example query',
+						source: 'google_search_console',
+						clicks: 4,
+						impressions: 40,
+					},
+				],
+				countries: [],
+				devices: [],
+			},
+		},
+	} );
+
+	expect( csv ).toContain( 'example query (Google)' );
+	expect( csv ).toContain( '"4"' );
+	expect( csv ).toContain( '"40"' );
+} );

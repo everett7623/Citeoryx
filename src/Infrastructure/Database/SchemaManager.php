@@ -76,6 +76,7 @@ class SchemaManager {
 		$sql_query_pages = "CREATE TABLE IF NOT EXISTS {$prefix}cx_query_pages (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			content_id BIGINT UNSIGNED NOT NULL,
+			source VARCHAR(30) NOT NULL DEFAULT 'unknown',
 			query_text VARCHAR(500) NOT NULL,
 			query_hash CHAR(32) NOT NULL,
 			country_code VARCHAR(8) NULL,
@@ -89,8 +90,10 @@ class SchemaManager {
 			intent VARCHAR(30) NULL,
 			topic_id BIGINT UNSIGNED NULL,
 			PRIMARY KEY (id),
+			UNIQUE KEY uq_query_dimension_period (content_id, source, query_hash, country_code, device, period_start, period_end),
 			KEY idx_query_hash (query_hash),
 			KEY idx_content_period (content_id, period_start, period_end),
+			KEY idx_dimension_period (country_code, device, period_end),
 			KEY idx_topic (topic_id)
 		) {$charset_collate};";
 

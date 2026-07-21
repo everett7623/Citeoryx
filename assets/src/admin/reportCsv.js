@@ -5,13 +5,33 @@ export const formatReportScore = ( value ) =>
 
 const labelFor = ( value ) => value || __( '未知', 'citeoryx' );
 
+const sourceLabels = {
+	google_search_console: 'Google',
+	bing_webmaster_tools: 'Bing',
+};
+
 const csvCell = ( value ) => {
 	const text = String( value ?? '' );
 	const safeText = /^[=+\-@\t\r]/.test( text ) ? `'${ text }` : text;
 	return `"${ safeText.replace( /"/g, '""' ) }"`;
 };
 
+const dimensionRows = ( title, items = [] ) => [
+	[ '', '', '' ],
+	[ title, __( '点击', 'citeoryx' ), __( '展现', 'citeoryx' ) ],
+	...items.map( ( item ) => [
+		item.source
+			? `${ item.label } (${
+					sourceLabels[ item.source ] || item.source
+			  })`
+			: item.label,
+		item.clicks,
+		item.impressions,
+	] ),
+];
+
 export const buildReportCsv = ( data ) => {
+	const dimensions = data.performance?.dimensions || {};
 	const rows = [
 		[ __( '报告生成时间', 'citeoryx' ), data.generated_at ],
 		[ __( '内容资产总数', 'citeoryx' ), data.content.total ],
@@ -51,6 +71,9 @@ export const buildReportCsv = ( data ) => {
 			labelFor( item.label ),
 			item.count,
 		] ),
+		...dimensionRows( __( '热门查询', 'citeoryx' ), dimensions.queries ),
+		...dimensionRows( __( '国家', 'citeoryx' ), dimensions.countries ),
+		...dimensionRows( __( '设备', 'citeoryx' ), dimensions.devices ),
 	];
 
 	return rows.map( ( row ) => row.map( csvCell ).join( ',' ) ).join( '\r\n' );

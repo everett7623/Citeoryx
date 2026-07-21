@@ -286,6 +286,8 @@ All integration configuration endpoints require `citeoryx_manage_integrations`. 
 
 Search Console imports run daily for the most recently finalized day (three-day reporting delay). The plugin saves per-content snapshots in local metrics storage and exposes a combined 28-day `performance` aggregate from `GET /reports/summary`.
 
+`performance.history` contains daily site totals. `performance.dimensions` contains the top 20 aggregated `queries`, `countries`, and `devices`, with `label`, `clicks`, `impressions`, `ctr`, and impression-weighted `position_avg`. Query items also include `source`. Google imports the top 100 query/country/device combinations for each content URL and day; Bing currently contributes query rows without country or device values.
+
 The Google and Bing status responses include a `health` object with `status`, `message`, `checked_at`, `consecutive_failures`, and `last_success_at`. A successful validation or scheduled import request resets the failure streak; two consecutive failures produce an admin notice. A valid response with no rows or sites is treated as healthy.
 
 `POST /integrations/ai/settings` body:

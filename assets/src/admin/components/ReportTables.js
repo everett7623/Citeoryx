@@ -3,6 +3,11 @@ import { Card, CardBody, CardHeader } from '@wordpress/components';
 
 const labelFor = ( value ) => value || __( '未知', 'citeoryx' );
 
+const sourceLabels = {
+	google_search_console: 'Google',
+	bing_webmaster_tools: 'Bing',
+};
+
 export const DistributionTable = ( { title, items, emptyLabel } ) => (
 	<Card>
 		<CardHeader>{ title }</CardHeader>
@@ -80,6 +85,78 @@ export const RecentScansTable = ( { items } ) => (
 								<td>{ scan.scan_type }</td>
 								<td>{ scan.status }</td>
 								<td>{ scan.started_at || '—' }</td>
+							</tr>
+						) ) }
+					</tbody>
+				</table>
+			) }
+		</CardBody>
+	</Card>
+);
+
+export const PerformanceHistoryTable = ( { items = [] } ) => (
+	<Card>
+		<CardHeader>{ __( '搜索表现趋势', 'citeoryx' ) }</CardHeader>
+		<CardBody>
+			{ items.length === 0 ? (
+				<p>{ __( '暂无搜索表现历史。', 'citeoryx' ) }</p>
+			) : (
+				<table className="citeoryx-report-table">
+					<thead>
+						<tr>
+							<th>{ __( '日期', 'citeoryx' ) }</th>
+							<th>{ __( '点击', 'citeoryx' ) }</th>
+							<th>{ __( '展现', 'citeoryx' ) }</th>
+						</tr>
+					</thead>
+					<tbody>
+						{ items.map( ( item ) => (
+							<tr key={ item.metric_date }>
+								<td>{ item.metric_date }</td>
+								<td>{ item.clicks ?? '—' }</td>
+								<td>{ item.impressions ?? '—' }</td>
+							</tr>
+						) ) }
+					</tbody>
+				</table>
+			) }
+		</CardBody>
+	</Card>
+);
+
+export const DimensionTable = ( { title, items = [] } ) => (
+	<Card>
+		<CardHeader>{ title }</CardHeader>
+		<CardBody>
+			{ items.length === 0 ? (
+				<p>{ __( '暂无维度数据。', 'citeoryx' ) }</p>
+			) : (
+				<table className="citeoryx-report-table">
+					<thead>
+						<tr>
+							<th>{ __( '维度', 'citeoryx' ) }</th>
+							<th>{ __( '点击', 'citeoryx' ) }</th>
+							<th>{ __( '展现', 'citeoryx' ) }</th>
+						</tr>
+					</thead>
+					<tbody>
+						{ items.map( ( item ) => (
+							<tr
+								key={ `${ item.source || 'all' }-${
+									item.label
+								}` }
+							>
+								<td>
+									{ item.label }
+									{ item.source
+										? ` (${
+												sourceLabels[ item.source ] ||
+												item.source
+										  })`
+										: '' }
+								</td>
+								<td>{ item.clicks ?? '—' }</td>
+								<td>{ item.impressions ?? '—' }</td>
 							</tr>
 						) ) }
 					</tbody>

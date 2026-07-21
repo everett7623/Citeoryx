@@ -116,16 +116,28 @@ class GoogleSearchConsole implements SearchConsoleInterface {
 	/**
 	 * Get top search queries for a specific URL.
 	 *
-	 * @param string $url        URL.
-	 * @param string $start_date Start date.
-	 * @param string $end_date   End date.
+	 * @param string               $url        URL.
+	 * @param string               $start_date Start date.
+	 * @param string               $end_date   End date.
+	 * @param array<string, mixed> $options    Query dimensions and row limit.
 	 * @return array<int, array<string, mixed>>
 	 */
-	public function get_queries_for_url( string $url, string $start_date, string $end_date ): array {
+	public function get_queries_for_url( string $url, string $start_date, string $end_date, array $options = array() ): array {
+		$requested_dimensions = array_values(
+			array_filter( (array) ( $options['dimensions'] ?? array( 'query' ) ), 'is_string' )
+		);
+		$dimensions           = array_values(
+			array_intersect(
+				array( 'query', 'country', 'device' ),
+				array_unique( array_merge( array( 'query' ), $requested_dimensions ) )
+			)
+		);
+		$row_limit            = max( 1, min( 25000, absint( $options['row_limit'] ?? 20 ) ) );
+
 		$body = array(
 			'startDate'             => $start_date,
 			'endDate'               => $end_date,
-			'dimensions'            => array( 'query' ),
+			'dimensions'            => $dimensions,
 			'dimensionFilterGroups' => array(
 				array(
 					'filters' => array(
@@ -137,21 +149,27 @@ class GoogleSearchConsole implements SearchConsoleInterface {
 					),
 				),
 			),
-			'rowLimit'              => 20,
+			'rowLimit'              => $row_limit,
 		);
 
 		$data = $this->request( 'POST', '/sites/' . rawurlencode( $this->site_url ) . '/searchAnalytics/query', $body );
 
 		$rows = $data['rows'] ?? array();
 		return array_map(
-			static function ( array $row ): array {
-				return array(
+			static function ( array $row ) use ( $dimensions ): array {
+				$mapped = array(
 					'query'       => $row['keys'][0] ?? '',
 					'clicks'      => $row['clicks'] ?? 0,
 					'impressions' => $row['impressions'] ?? 0,
 					'ctr'         => round( ( $row['ctr'] ?? 0 ) * 100, 2 ),
 					'position'    => round( $row['position'] ?? 0, 1 ),
 				);
+				foreach ( $dimensions as $index => $dimension ) {
+					if ( isset( $row['keys'][ $index ] ) ) {
+						$mapped[ $dimension ] = sanitize_text_field( (string) $row['keys'][ $index ] );
+					}
+				}
+				return $mapped;
 			},
 			$rows
 		);
