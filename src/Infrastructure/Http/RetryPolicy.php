@@ -12,7 +12,7 @@ namespace Citeoryx\Infrastructure\Http;
  */
 class RetryPolicy {
 
-	const DEFAULT_MAX_ATTEMPTS = 3;
+	const DEFAULT_MAX_ATTEMPTS  = 3;
 	const DEFAULT_BASE_DELAY_MS = 250;
 	const DEFAULT_MAX_DELAY_MS  = 2000;
 
@@ -42,10 +42,10 @@ class RetryPolicy {
 		int $base_delay_ms = self::DEFAULT_BASE_DELAY_MS,
 		int $max_delay_ms = self::DEFAULT_MAX_DELAY_MS
 	) {
-		$this->max_attempts = max( 1, $max_attempts );
+		$this->max_attempts  = max( 1, $max_attempts );
 		$this->base_delay_ms = max( 0, $base_delay_ms );
-		$this->max_delay_ms = max( 0, $max_delay_ms );
-		$this->sleeper = $sleeper
+		$this->max_delay_ms  = max( 0, $max_delay_ms );
+		$this->sleeper       = $sleeper
 			? \Closure::fromCallable( $sleeper )
 			: static function ( int $delay_ms ): void {
 				if ( $delay_ms > 0 ) {
