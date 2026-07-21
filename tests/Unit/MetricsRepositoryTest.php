@@ -143,8 +143,8 @@ class MetricsRepositoryTest extends WP_UnitTestCase {
 			$date,
 			'google_search_console',
 			array(
-				'impressions' => 100,
-				'clicks'      => 10,
+				'impressions'  => 100,
+				'clicks'       => 10,
 				'position_avg' => 2,
 			)
 		);
@@ -153,8 +153,8 @@ class MetricsRepositoryTest extends WP_UnitTestCase {
 			$date,
 			'bing_webmaster_tools',
 			array(
-				'impressions' => 50,
-				'clicks'      => 5,
+				'impressions'  => 50,
+				'clicks'       => 5,
 				'position_avg' => 4,
 			)
 		);
