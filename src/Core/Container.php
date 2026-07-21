@@ -27,6 +27,7 @@ use Citeoryx\Infrastructure\Http\HttpClient;
 use Citeoryx\Infrastructure\Encryption\KeyStore;
 use Citeoryx\Application\Notifications\WeeklyDigest;
 use Citeoryx\Application\Search\SearchPerformanceImporter;
+use Citeoryx\Application\Search\SearchIntegrationHealth;
 use Citeoryx\Integrations\SearchConsole\BingWebmasterTools;
 use Citeoryx\Integrations\SearchConsole\GoogleOAuth;
 use Citeoryx\Integrations\SearchConsole\GoogleSearchConsole;
@@ -137,12 +138,15 @@ class Container {
 				return new GoogleSearchConsole( $this->get( GoogleOAuth::class ) );
 			case BingWebmasterTools::class:
 				return new BingWebmasterTools();
+			case SearchIntegrationHealth::class:
+				return new SearchIntegrationHealth();
 			case SearchPerformanceImporter::class:
 				return new SearchPerformanceImporter(
 					$this->get( ContentRepository::class ),
 					$this->get( MetricsRepository::class ),
 					$this->get( GoogleSearchConsole::class ),
-					$this->get( BingWebmasterTools::class )
+					$this->get( BingWebmasterTools::class ),
+					$this->get( SearchIntegrationHealth::class )
 				);
 			case ScanRunRepository::class:
 				return new ScanRunRepository();

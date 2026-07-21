@@ -20,6 +20,20 @@ interface SearchConsoleInterface {
 	public function is_connected(): bool;
 
 	/**
+	 * Validate the remote connection and return a stable result.
+	 *
+	 * @return array{valid: bool, status: string, message: string, site_count: int}
+	 */
+	public function validate_connection(): array;
+
+	/**
+	 * Get the last request error, if any.
+	 *
+	 * @return string|null
+	 */
+	public function get_last_error(): ?string;
+
+	/**
 	 * Get metrics for a date range.
 	 *
 	 * @param string $start_date Start date YYYY-MM-DD.

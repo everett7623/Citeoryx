@@ -1,5 +1,5 @@
 import { useEffect, useState } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { getApiErrorMessage } from '../apiError';
 import {
@@ -13,6 +13,36 @@ import {
 	TextControl,
 } from '@wordpress/components';
 
+const renderIntegrationHealth = ( health ) => {
+	if ( ! health || health.status === 'unknown' ) {
+		return null;
+	}
+
+	return (
+		<Notice
+			status={ health.status === 'healthy' ? 'success' : 'error' }
+			isDismissible={ false }
+		>
+			<strong>
+				{ health.status === 'healthy'
+					? __( '连接正常。', 'citeoryx' )
+					: __( '连接需要处理。', 'citeoryx' ) }
+			</strong>{ ' ' }
+			{ health.message }
+			{ health.status === 'error' && health.consecutive_failures > 1 && (
+				<span>
+					{ ' ' }
+					{ sprintf(
+						/* translators: %d: consecutive failure count. */
+						__( '连续失败：%d 次。', 'citeoryx' ),
+						health.consecutive_failures
+					) }
+				</span>
+			) }
+		</Notice>
+	);
+};
+
 const Integrations = () => {
 	const [ gsc, setGsc ] = useState( null );
 	const [ bing, setBing ] = useState( null );
@@ -24,6 +54,7 @@ const Integrations = () => {
 	const [ apiKey, setApiKey ] = useState( '' );
 	const [ loading, setLoading ] = useState( true );
 	const [ saving, setSaving ] = useState( false );
+	const [ validating, setValidating ] = useState( null );
 	const [ notice, setNotice ] = useState( null );
 
 	const loadStatus = () => {
@@ -191,6 +222,43 @@ const Integrations = () => {
 			.finally( () => setSaving( false ) );
 	};
 
+	const validateSearchConnection = ( provider ) => {
+		const isGoogle = provider === 'gsc';
+		setValidating( provider );
+		apiFetch( {
+			path: `citeoryx/v1/integrations/${ provider }/validate`,
+			method: 'POST',
+		} )
+			.then( ( response ) => {
+				const result = response.data;
+				if ( isGoogle ) {
+					setGsc( ( current ) => ( {
+						...current,
+						health: result.health,
+					} ) );
+				} else {
+					setBing( ( current ) => ( {
+						...current,
+						health: result.health,
+					} ) );
+				}
+				setNotice( {
+					status: result.valid ? 'success' : 'error',
+					text: result.message,
+				} );
+			} )
+			.catch( ( error ) =>
+				setNotice( {
+					status: 'error',
+					text: getApiErrorMessage(
+						error,
+						__( '无法验证连接。', 'citeoryx' )
+					),
+				} )
+			)
+			.finally( () => setValidating( null ) );
+	};
+
 	const saveAi = () => {
 		if ( aiProvider === 'openai' && ! apiKey && ! ai?.has_openai_key ) {
 			setNotice( {
@@ -251,6 +319,7 @@ const Integrations = () => {
 					{ __( 'Google Search Console', 'citeoryx' ) }
 				</CardHeader>
 				<CardBody>
+					{ renderIntegrationHealth( gsc?.health ) }
 					<p>
 						{ gsc?.connected
 							? __( '状态：已连接', 'citeoryx' )
@@ -299,6 +368,16 @@ const Integrations = () => {
 					) }
 					{ gsc?.connected && (
 						<Button
+							variant="primary"
+							onClick={ () => validateSearchConnection( 'gsc' ) }
+							disabled={ saving || validating !== null }
+							isBusy={ validating === 'gsc' }
+						>
+							{ __( '验证连接', 'citeoryx' ) }
+						</Button>
+					) }
+					{ gsc?.connected && (
+						<Button
 							variant="secondary"
 							onClick={ disconnectGsc }
 							disabled={ saving }
@@ -314,6 +393,7 @@ const Integrations = () => {
 					{ __( 'Bing Webmaster Tools', 'citeoryx' ) }
 				</CardHeader>
 				<CardBody>
+					{ renderIntegrationHealth( bing?.health ) }
 					<p>
 						{ bing?.connected
 							? __( '状态：已连接', 'citeoryx' )
@@ -335,6 +415,16 @@ const Integrations = () => {
 								{ __( '保存并连接 Bing', 'citeoryx' ) }
 							</Button>
 						</>
+					) }
+					{ bing?.connected && (
+						<Button
+							variant="primary"
+							onClick={ () => validateSearchConnection( 'bing' ) }
+							disabled={ saving || validating !== null }
+							isBusy={ validating === 'bing' }
+						>
+							{ __( '验证连接', 'citeoryx' ) }
+						</Button>
 					) }
 					{ bing?.connected && (
 						<Button

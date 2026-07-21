@@ -25,6 +25,11 @@ class GoogleSearchConsole implements SearchConsoleInterface {
 	private string $site_url;
 
 	/**
+	 * @var string|null
+	 */
+	private ?string $last_error = null;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param GoogleOAuth $oauth OAuth helper.
@@ -41,6 +46,48 @@ class GoogleSearchConsole implements SearchConsoleInterface {
 	 */
 	public function is_connected(): bool {
 		return $this->oauth->is_connected();
+	}
+
+	/**
+	 * Validate access to the Search Console sites endpoint.
+	 *
+	 * @return array{valid: bool, status: string, message: string, site_count: int}
+	 */
+	public function validate_connection(): array {
+		if ( ! $this->is_connected() ) {
+			return array(
+				'valid'      => false,
+				'status'     => 'not_configured',
+				'message'    => 'Google Search Console is not connected.',
+				'site_count' => 0,
+			);
+		}
+
+		$sites = $this->list_sites();
+		if ( $this->last_error ) {
+			return array(
+				'valid'      => false,
+				'status'     => 'error',
+				'message'    => $this->last_error,
+				'site_count' => 0,
+			);
+		}
+
+		return array(
+			'valid'      => true,
+			'status'     => 'healthy',
+			'message'    => sprintf( 'Connection is healthy (%d site(s) available).', count( $sites ) ),
+			'site_count' => count( $sites ),
+		);
+	}
+
+	/**
+	 * Get the last request error.
+	 *
+	 * @return string|null
+	 */
+	public function get_last_error(): ?string {
+		return $this->last_error;
 	}
 
 	/**
@@ -130,8 +177,10 @@ class GoogleSearchConsole implements SearchConsoleInterface {
 	 * @return array<string, mixed>
 	 */
 	private function request( string $method, string $path, array $body = array() ): array {
+		$this->last_error = null;
 		$token = $this->oauth->get_access_token();
 		if ( ! $token ) {
+			$this->last_error = 'Google Search Console access token is unavailable.';
 			return array();
 		}
 
@@ -151,14 +200,25 @@ class GoogleSearchConsole implements SearchConsoleInterface {
 		$response = wp_remote_request( self::API_BASE . $path, $args );
 
 		if ( is_wp_error( $response ) ) {
+			$this->last_error = sprintf(
+				'Google Search Console request failed (%s).',
+				sanitize_key( (string) $response->get_error_code() )
+			);
 			return array();
 		}
 
 		$code = wp_remote_retrieve_response_code( $response );
 		if ( $code < 200 || $code >= 300 ) {
+			$this->last_error = sprintf( 'Google Search Console returned HTTP %d.', $code );
 			return array();
 		}
 
-		return json_decode( wp_remote_retrieve_body( $response ), true ) ?: array();
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( JSON_ERROR_NONE !== json_last_error() || ! is_array( $data ) ) {
+			$this->last_error = 'Google Search Console returned an invalid JSON response.';
+			return array();
+		}
+
+		return $data;
 	}
 }

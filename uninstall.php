@@ -63,6 +63,7 @@ function citeoryx_delete_options(): void {
 		'citeoryx_last_incremental_scan',
 		'citeoryx_last_weekly_digest_period',
 		'citeoryx_notification_status',
+		'citeoryx_search_integration_health',
 		'citeoryx_capabilities_version',
 		'citeoryx_key_gsc_tokens',
 		'citeoryx_key_gsc_client_secret',

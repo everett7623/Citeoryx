@@ -260,6 +260,7 @@ All integration configuration endpoints require `citeoryx_manage_integrations`. 
 | GET | `/integrations/gsc` | Get Google Search Console connection state and callback URI |
 | POST | `/integrations/gsc/client` | Save Google OAuth client credentials and return the authorization URL |
 | POST | `/integrations/gsc/disconnect` | Remove stored Google OAuth tokens |
+| POST | `/integrations/gsc/validate` | Validate Google API access and update connection health |
 | GET | `/integrations/gsc/metrics` | Get Google Search Console query metrics for a date range |
 | GET | `/integrations/gsc/queries?url={url}` | Get search queries for one canonical URL |
 | GET | `/integrations/gsc/sites` | List Search Console sites available to the connected account |
@@ -269,6 +270,7 @@ All integration configuration endpoints require `citeoryx_manage_integrations`. 
 | GET | `/integrations/bing` | Get Bing Webmaster Tools connection state |
 | POST | `/integrations/bing/settings` | Save Bing Webmaster Tools API key |
 | POST | `/integrations/bing/disconnect` | Remove stored Bing API key |
+| POST | `/integrations/bing/validate` | Validate Bing API access and update connection health |
 | GET | `/integrations/bing/metrics` | Get Bing query stats for a date range |
 | GET | `/integrations/bing/queries?url={url}` | Get Bing queries for one canonical URL |
 | GET | `/integrations/bing/sites` | List Bing Webmaster Tools sites |
@@ -283,6 +285,8 @@ All integration configuration endpoints require `citeoryx_manage_integrations`. 
 ```
 
 Search Console imports run daily for the most recently finalized day (three-day reporting delay). The plugin saves per-content snapshots in local metrics storage and exposes a combined 28-day `performance` aggregate from `GET /reports/summary`.
+
+The Google and Bing status responses include a `health` object with `status`, `message`, `checked_at`, `consecutive_failures`, and `last_success_at`. A successful validation or scheduled import request resets the failure streak; two consecutive failures produce an admin notice. A valid response with no rows or sites is treated as healthy.
 
 `POST /integrations/ai/settings` body:
 

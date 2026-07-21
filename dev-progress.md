@@ -70,6 +70,7 @@
 - DeepSeek：通过 Chat Completions API 生成内容优化建议与 AI 可发现性分析
 - 所有搜索控制台与 AI 密钥通过 `KeyStore` 加密存储
 - 已实现 Google Search Console / Bing 每日数据导入：按内容 URL 和最近确认日期写入本地 `cx_metrics_daily` 快照，使用 ID 游标分批续接
+- Google / Bing 支持显式连接验证、健康状态记录与连续导入失败告警；合法空数据不会被误判为连接失败
 - 站点报告及 CSV 已显示本地 28 天搜索点击与展现聚合
 
 ### CLI
@@ -140,12 +141,16 @@
 | `src/Rest/Controllers/ReportsController.php` | 报告响应包含本地搜索表现汇总 |
 | `assets/src/admin/components/Reports.js` | 后台报告显示搜索点击与展现 |
 | `assets/src/admin/reportCsv.js` | CSV 导出包含搜索表现快照 |
+| `src/Application/Search/SearchIntegrationHealth.php` | 记录搜索集成健康状态、连续失败次数与恢复时间 |
+| `src/Integrations/SearchConsole/*` | 保留安全的请求错误并提供统一连接验证契约 |
+| `src/Rest/Controllers/SearchConsoleController.php` / `BingController.php` | 新增连接验证端点并返回健康状态 |
+| `assets/src/admin/components/Integrations.js` / `src/Admin/Notices.php` | 展示连接状态并在连续失败后通知集成管理员 |
 
 ## 待开发 / 建议下一步
 
 1. **完善外部 API**
    - 搜索指标的国家、设备与查询维度历史快照
-   - 搜索 API 的连接验证与失败告警
+   - 搜索 API 限流与暂时性失败的自动重试
 
 2. **内容规划与日历**
    - 主题机会发现
@@ -157,7 +162,7 @@
 
 4. **测试与质量**
    - Playwright E2E 测试
-   - 外部 API contract mock 与失败重试测试
+   - 外部 API 限流、超时与失败重试测试
 
 ## 部署备忘
 
@@ -174,7 +179,7 @@
 - 已将 TypeScript 固定为与 `@wordpress/scripts@27` 兼容的 5.4.x；JS lint、React 构建与 CSS lint 均已成功（2026-07-21）。
 - 本机没有运行中的 WordPress 实例或可复用后台浏览器页面，首次设置尚未执行真实 E2E 回归。
 - 搜索表现目前按内容 URL 写入每日聚合快照，国家、设备和查询维度历史快照尚未实现。
-- 搜索 API 连接验证、导入失败告警与自动重试尚未实现。
+- 搜索 API 已支持连接验证与连续导入失败告警；限流和暂时性失败的自动重试尚未实现。
 - Google Search Console 需要在 Google Cloud Console 创建 OAuth Web Client，并将插件显示的 callback URI 加入授权重定向 URI。
 - Bing Webmaster Tools 需要 API Key（Bing 后台“API 访问”）。
 - OpenAI / DeepSeek 使用需要单独配置 API Key；密钥不会返回给浏览器或 REST 响应。
