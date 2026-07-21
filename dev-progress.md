@@ -1,8 +1,9 @@
 # Citeoryx 开发进度
 
-> 最后更新：2026-07-21
+> 最后更新：2026-07-22
 
-> 当前开发版本：2.1.0
+> 当前发布版本：2.1.0
+> 下一开发目标：2.2.0
 
 ## 已完成功能
 
@@ -155,9 +156,8 @@
    - PDF 报告导出（当前已支持后台汇总与 CSV）
 
 4. **测试与质量**
-   - 单元测试（PHPUnit）
-   - PHPCS / WPCS 规范检查
    - Playwright E2E 测试
+   - 外部 API contract mock 与失败重试测试
 
 ## 部署备忘
 
@@ -170,10 +170,11 @@
 ## 已知限制
 
 - PHP 8.4 CLI 已可用；2026-07-21 已对项目全部 PHP 文件执行语法检查并通过。
-- 本机缺少 WordPress PHPUnit 测试库和 Composer `vendor/`，尚未执行 PHPUnit；当前 PHP 环境也未启用 OpenSSL，Composer 安装仍受阻。
+- GitHub Actions 已在 PHP 8.0–8.4、WordPress 6.6/latest 与 MySQL 8 矩阵中通过 PHPUnit、PHPCompatibility 和 WPCS（2026-07-22）。
 - 已将 TypeScript 固定为与 `@wordpress/scripts@27` 兼容的 5.4.x；JS lint、React 构建与 CSS lint 均已成功（2026-07-21）。
-- PHPUnit 回归用例已补充至测试目录，但仍需安装 WordPress 测试库和 Composer `vendor/` 后执行。
 - 本机没有运行中的 WordPress 实例或可复用后台浏览器页面，首次设置尚未执行真实 E2E 回归。
+- 搜索表现目前按内容 URL 写入每日聚合快照，国家、设备和查询维度历史快照尚未实现。
+- 搜索 API 连接验证、导入失败告警与自动重试尚未实现。
 - Google Search Console 需要在 Google Cloud Console 创建 OAuth Web Client，并将插件显示的 callback URI 加入授权重定向 URI。
 - Bing Webmaster Tools 需要 API Key（Bing 后台“API 访问”）。
 - OpenAI / DeepSeek 使用需要单独配置 API Key；密钥不会返回给浏览器或 REST 响应。
