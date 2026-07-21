@@ -15,34 +15,49 @@ class SearchPerformanceImporter {
 	private MetricsRepository $metrics_repo;
 	private GoogleSearchConsole $google;
 	private BingWebmasterTools $bing;
+	private SearchIntegrationHealth $health;
 
 	public function __construct(
 		ContentRepository $content_repo,
 		MetricsRepository $metrics_repo,
 		GoogleSearchConsole $google,
-		BingWebmasterTools $bing
+		BingWebmasterTools $bing,
+		SearchIntegrationHealth $health
 	) {
 		$this->content_repo = $content_repo;
 		$this->metrics_repo = $metrics_repo;
 		$this->google       = $google;
 		$this->bing         = $bing;
+		$this->health       = $health;
 	}
 
 	public function import_batch( int $after_id = 0, int $limit = 20, ?string $date = null ): array {
-		$date    = $date ?: gmdate( 'Y-m-d', strtotime( '-3 days' ) );
-		$items   = $this->content_repo->list_after_id( $after_id, $limit );
-		$results = array(
+		$date              = $date ?: gmdate( 'Y-m-d', strtotime( '-3 days' ) );
+		$items             = $this->content_repo->list_after_id( $after_id, $limit );
+		$results           = array(
 			'processed' => 0,
 			'imported'  => 0,
 			'last_id'   => $after_id,
 			'complete'  => count( $items ) < $limit,
 		);
+		$provider_failures = array();
+		$provider_success  = array();
+		$providers         = $this->get_providers();
 
 		foreach ( $items as $item ) {
 			++$results['processed'];
 			$results['last_id'] = (int) $item->id;
-			foreach ( $this->get_providers() as $source => $provider ) {
+			foreach ( $providers as $source => $provider ) {
+				if ( isset( $provider_failures[ $source ] ) ) {
+					continue;
+				}
+
 				$metrics = $this->fetch_page_metrics( $provider, $item->canonical_url, $date );
+				if ( $provider->get_last_error() ) {
+					$provider_failures[ $source ] = $provider->get_last_error();
+				} elseif ( ! isset( $provider_failures[ $source ] ) ) {
+					$provider_success[ $source ] = true;
+				}
 				if ( null === $metrics ) {
 					continue;
 				}
@@ -50,6 +65,16 @@ class SearchPerformanceImporter {
 				++$results['imported'];
 			}
 		}
+
+		foreach ( $provider_failures as $source => $message ) {
+			$this->health->record_failure( $source, (string) $message );
+		}
+		foreach ( array_keys( $provider_success ) as $source ) {
+			if ( ! isset( $provider_failures[ $source ] ) ) {
+				$this->health->record_success( $source );
+			}
+		}
+		$results['health'] = $this->health->all();
 
 		return $results;
 	}

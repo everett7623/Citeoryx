@@ -16,6 +16,7 @@ use Citeoryx\Infrastructure\Database\SchemaManager;
 use Citeoryx\Support\Privacy;
 use Citeoryx\Integrations\SearchConsole\GoogleOAuth;
 use Citeoryx\Application\Notifications\WeeklyDigest;
+use Citeoryx\Application\Search\SearchIntegrationHealth;
 
 /**
  * Main plugin orchestrator.
@@ -83,7 +84,7 @@ class Plugin {
 	private function register_admin(): void {
 		$menu    = new Menu();
 		$assets  = new Assets( $this->container );
-		$notices = new Notices();
+		$notices = new Notices( $this->container->get( SearchIntegrationHealth::class ) );
 
 		add_action( 'admin_menu', array( $menu, 'register' ) );
 		add_action( 'admin_enqueue_scripts', array( $assets, 'enqueue' ) );

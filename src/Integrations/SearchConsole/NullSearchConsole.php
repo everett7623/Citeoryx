@@ -22,6 +22,29 @@ class NullSearchConsole implements SearchConsoleInterface {
 	}
 
 	/**
+	 * Return a disconnected validation result.
+	 *
+	 * @return array{valid: bool, status: string, message: string, site_count: int}
+	 */
+	public function validate_connection(): array {
+		return array(
+			'valid'      => false,
+			'status'     => 'not_configured',
+			'message'    => 'Search provider is not configured.',
+			'site_count' => 0,
+		);
+	}
+
+	/**
+	 * Return no request error for the null object.
+	 *
+	 * @return string|null
+	 */
+	public function get_last_error(): ?string {
+		return null;
+	}
+
+	/**
 	 * Return empty metrics.
 	 *
 	 * @param string               $start_date Start date.

@@ -7,6 +7,7 @@
 
 namespace Citeoryx\Rest\Controllers;
 
+use Citeoryx\Application\Search\SearchIntegrationHealth;
 use Citeoryx\Core\Capabilities;
 use Citeoryx\Integrations\SearchConsole\GoogleOAuth;
 use Citeoryx\Integrations\SearchConsole\GoogleSearchConsole;
@@ -67,6 +68,18 @@ class SearchConsoleController extends BaseController {
 				array(
 					'methods'             => 'POST',
 					'callback'            => array( $this, 'disconnect' ),
+					'permission_callback' => array( $this, 'check_permission' ),
+				),
+			)
+		);
+
+		register_rest_route(
+			$namespace,
+			'/integrations/gsc/validate',
+			array(
+				array(
+					'methods'             => 'POST',
+					'callback'            => array( $this, 'validate_connection' ),
 					'permission_callback' => array( $this, 'check_permission' ),
 				),
 			)
@@ -164,6 +177,7 @@ class SearchConsoleController extends BaseController {
 				'auth_url'          => $oauth->get_auth_url(),
 				'redirect_uri'      => $oauth->get_redirect_uri(),
 				'connection_result' => $connection_result ?: null,
+				'health'            => $this->container->get( SearchIntegrationHealth::class )->get( 'google_search_console' ),
 			)
 		);
 	}
@@ -180,6 +194,7 @@ class SearchConsoleController extends BaseController {
 			(string) $request->get_param( 'client_id' ),
 			(string) $request->get_param( 'client_secret' )
 		);
+		$this->container->get( SearchIntegrationHealth::class )->clear( 'google_search_console' );
 
 		return $this->success(
 			array(
@@ -197,7 +212,31 @@ class SearchConsoleController extends BaseController {
 	public function disconnect(): \WP_REST_Response {
 		$oauth = new GoogleOAuth();
 		$oauth->disconnect();
+		$this->container->get( SearchIntegrationHealth::class )->clear( 'google_search_console' );
 		return $this->success( array( 'disconnected' => true ) );
+	}
+
+	/**
+	 * Validate the current Google Search Console connection.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function validate_connection(): \WP_REST_Response {
+		$gsc    = $this->container->get( GoogleSearchConsole::class );
+		$health = $this->container->get( SearchIntegrationHealth::class );
+		$result = $gsc->validate_connection();
+
+		if ( $result['valid'] ) {
+			$state = $health->record_success( 'google_search_console', $result['message'] );
+		} elseif ( 'error' === $result['status'] ) {
+			$state = $health->record_failure( 'google_search_console', $result['message'] );
+		} else {
+			$health->clear( 'google_search_console' );
+			$state = $health->get( 'google_search_console' );
+		}
+
+		$result['health'] = $state;
+		return $this->success( $result );
 	}
 
 	/**

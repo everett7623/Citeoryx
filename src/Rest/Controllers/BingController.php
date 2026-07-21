@@ -7,6 +7,7 @@
 
 namespace Citeoryx\Rest\Controllers;
 
+use Citeoryx\Application\Search\SearchIntegrationHealth;
 use Citeoryx\Core\Capabilities;
 use Citeoryx\Integrations\SearchConsole\BingWebmasterTools;
 use WP_REST_Request;
@@ -60,6 +61,18 @@ class BingController extends BaseController {
 				array(
 					'methods'             => 'POST',
 					'callback'            => array( $this, 'disconnect' ),
+					'permission_callback' => array( $this, 'check_permission' ),
+				),
+			)
+		);
+
+		register_rest_route(
+			$namespace,
+			'/integrations/bing/validate',
+			array(
+				array(
+					'methods'             => 'POST',
+					'callback'            => array( $this, 'validate_connection' ),
 					'permission_callback' => array( $this, 'check_permission' ),
 				),
 			)
@@ -143,7 +156,12 @@ class BingController extends BaseController {
 	 */
 	public function get_status(): \WP_REST_Response {
 		$bing = new BingWebmasterTools();
-		return $this->success( array( 'connected' => $bing->is_connected() ) );
+		return $this->success(
+			array(
+				'connected' => $bing->is_connected(),
+				'health'    => $this->container->get( SearchIntegrationHealth::class )->get( 'bing_webmaster_tools' ),
+			)
+		);
 	}
 
 	/**
@@ -155,6 +173,7 @@ class BingController extends BaseController {
 	public function save_settings( WP_REST_Request $request ): \WP_REST_Response {
 		$api_key = sanitize_text_field( (string) $request->get_param( 'api_key' ) );
 		BingWebmasterTools::save_api_key( $api_key );
+		$this->container->get( SearchIntegrationHealth::class )->clear( 'bing_webmaster_tools' );
 		return $this->success(
 			array(
 				'saved'     => true,
@@ -170,7 +189,31 @@ class BingController extends BaseController {
 	 */
 	public function disconnect(): \WP_REST_Response {
 		BingWebmasterTools::delete_api_key();
+		$this->container->get( SearchIntegrationHealth::class )->clear( 'bing_webmaster_tools' );
 		return $this->success( array( 'disconnected' => true ) );
+	}
+
+	/**
+	 * Validate the current Bing Webmaster Tools connection.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function validate_connection(): \WP_REST_Response {
+		$bing   = $this->container->get( BingWebmasterTools::class );
+		$health = $this->container->get( SearchIntegrationHealth::class );
+		$result = $bing->validate_connection();
+
+		if ( $result['valid'] ) {
+			$state = $health->record_success( 'bing_webmaster_tools', $result['message'] );
+		} elseif ( 'error' === $result['status'] ) {
+			$state = $health->record_failure( 'bing_webmaster_tools', $result['message'] );
+		} else {
+			$health->clear( 'bing_webmaster_tools' );
+			$state = $health->get( 'bing_webmaster_tools' );
+		}
+
+		$result['health'] = $state;
+		return $this->success( $result );
 	}
 
 	/**
