@@ -7,6 +7,8 @@
 
 namespace Citeoryx\Integrations\SearchConsole;
 
+use Citeoryx\Infrastructure\Http\RetryPolicy;
+
 /**
  * Fetches search performance data from the Google Search Console API.
  */
@@ -30,13 +32,20 @@ class GoogleSearchConsole implements SearchConsoleInterface {
 	private ?string $last_error = null;
 
 	/**
+	 * @var RetryPolicy
+	 */
+	private RetryPolicy $retry_policy;
+
+	/**
 	 * Constructor.
 	 *
-	 * @param GoogleOAuth $oauth OAuth helper.
+	 * @param GoogleOAuth     $oauth OAuth helper.
+	 * @param RetryPolicy|null $retry_policy HTTP retry policy.
 	 */
-	public function __construct( GoogleOAuth $oauth ) {
-		$this->oauth    = $oauth;
-		$this->site_url = trailingslashit( get_option( 'siteurl', home_url() ) );
+	public function __construct( GoogleOAuth $oauth, ?RetryPolicy $retry_policy = null ) {
+		$this->oauth        = $oauth;
+		$this->retry_policy = $retry_policy ?: new RetryPolicy();
+		$this->site_url     = trailingslashit( get_option( 'siteurl', home_url() ) );
 	}
 
 	/**
@@ -215,11 +224,14 @@ class GoogleSearchConsole implements SearchConsoleInterface {
 			$args['body'] = wp_json_encode( $body );
 		}
 
-		$response = wp_remote_request( self::API_BASE . $path, $args );
+		$response = $this->retry_policy->execute(
+			static fn () => wp_remote_request( self::API_BASE . $path, $args )
+		);
 
 		if ( is_wp_error( $response ) ) {
 			$this->last_error = sprintf(
-				'Google Search Console request failed (%s).',
+				'Google Search Console request failed after %1$d attempt(s) (%2$s).',
+				$this->retry_policy->get_last_attempt_count(),
 				sanitize_key( (string) $response->get_error_code() )
 			);
 			return array();
@@ -227,7 +239,11 @@ class GoogleSearchConsole implements SearchConsoleInterface {
 
 		$code = wp_remote_retrieve_response_code( $response );
 		if ( $code < 200 || $code >= 300 ) {
-			$this->last_error = sprintf( 'Google Search Console returned HTTP %d.', $code );
+			$this->last_error = sprintf(
+				'Google Search Console returned HTTP %1$d after %2$d attempt(s).',
+				$code,
+				$this->retry_policy->get_last_attempt_count()
+			);
 			return array();
 		}
 

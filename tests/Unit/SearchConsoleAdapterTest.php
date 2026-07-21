@@ -10,6 +10,7 @@ namespace Citeoryx\Tests\Unit;
 use Citeoryx\Integrations\SearchConsole\BingWebmasterTools;
 use Citeoryx\Integrations\SearchConsole\GoogleOAuth;
 use Citeoryx\Integrations\SearchConsole\GoogleSearchConsole;
+use Citeoryx\Infrastructure\Http\RetryPolicy;
 use WP_UnitTestCase;
 
 /**
@@ -51,14 +52,62 @@ class SearchConsoleAdapterTest extends WP_UnitTestCase {
 	 * @return void
 	 */
 	public function test_google_validation_reports_http_failure(): void {
-		$this->stub_http_response( 403, '{"error":"forbidden"}' );
-		$adapter = new GoogleSearchConsole( $this->connected_google_oauth() );
+		$calls  = 0;
+		$delays = array();
+		add_filter(
+			'pre_http_request',
+			function () use ( &$calls ): array {
+				++$calls;
+				return $this->http_response( 403, '{"error":"forbidden"}' );
+			}
+		);
+		$policy  = new RetryPolicy(
+			3,
+			static function ( int $delay ) use ( &$delays ): void {
+				$delays[] = $delay;
+			}
+		);
+		$adapter = new GoogleSearchConsole( $this->connected_google_oauth(), $policy );
 
 		$result = $adapter->validate_connection();
 
 		$this->assertFalse( $result['valid'] );
 		$this->assertSame( 'error', $result['status'] );
 		$this->assertStringContainsString( 'HTTP 403', $result['message'] );
+		$this->assertSame( 1, $calls );
+		$this->assertSame( array(), $delays );
+	}
+
+	/**
+	 * A rate limit should honor the bounded Retry-After delay and recover.
+	 *
+	 * @return void
+	 */
+	public function test_google_retries_rate_limit_with_bounded_retry_after(): void {
+		$calls  = 0;
+		$delays = array();
+		add_filter(
+			'pre_http_request',
+			function () use ( &$calls ): array {
+				++$calls;
+				return 1 === $calls
+					? $this->http_response( 429, '{"error":"rate limited"}', array( 'retry-after' => '10' ) )
+					: $this->http_response( 200, '{"siteEntry":[]}' );
+			}
+		);
+		$policy  = new RetryPolicy(
+			3,
+			static function ( int $delay ) use ( &$delays ): void {
+				$delays[] = $delay;
+			}
+		);
+		$adapter = new GoogleSearchConsole( $this->connected_google_oauth(), $policy );
+
+		$result = $adapter->validate_connection();
+
+		$this->assertTrue( $result['valid'] );
+		$this->assertSame( 2, $calls );
+		$this->assertSame( array( 2000 ), $delays );
 	}
 
 	/**
@@ -105,6 +154,42 @@ class SearchConsoleAdapterTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Network and server failures should use exponential backoff before recovery.
+	 *
+	 * @return void
+	 */
+	public function test_bing_retries_network_and_server_failures(): void {
+		BingWebmasterTools::save_api_key( 'test-api-key' );
+		$calls     = 0;
+		$delays    = array();
+		$responses = array(
+			new \WP_Error( 'http_request_failed', 'Temporary network error.' ),
+			$this->http_response( 503, '{"error":"unavailable"}' ),
+			$this->http_response( 200, '{"d":{"results":[]}}' ),
+		);
+		add_filter(
+			'pre_http_request',
+			static function () use ( &$calls, &$responses ) {
+				++$calls;
+				return array_shift( $responses );
+			}
+		);
+		$policy  = new RetryPolicy(
+			3,
+			static function ( int $delay ) use ( &$delays ): void {
+				$delays[] = $delay;
+			}
+		);
+		$adapter = new BingWebmasterTools( $policy );
+
+		$result = $adapter->validate_connection();
+
+		$this->assertTrue( $result['valid'] );
+		$this->assertSame( 3, $calls );
+		$this->assertSame( array( 250, 500 ), $delays );
+	}
+
+	/**
 	 * Build an OAuth test double with a usable token.
 	 *
 	 * @return GoogleOAuth
@@ -131,16 +216,28 @@ class SearchConsoleAdapterTest extends WP_UnitTestCase {
 	private function stub_http_response( int $code, string $body ): void {
 		add_filter(
 			'pre_http_request',
-			static fn () => array(
-				'headers'  => array(),
-				'body'     => $body,
-				'response' => array(
-					'code'    => $code,
-					'message' => 200 === $code ? 'OK' : 'Error',
-				),
-				'cookies'  => array(),
-				'filename' => null,
-			)
+			fn () => $this->http_response( $code, $body )
+		);
+	}
+
+	/**
+	 * Build a WordPress HTTP response fixture.
+	 *
+	 * @param int                  $code HTTP response code.
+	 * @param string               $body Response body.
+	 * @param array<string,string> $headers Response headers.
+	 * @return array<string, mixed>
+	 */
+	private function http_response( int $code, string $body, array $headers = array() ): array {
+		return array(
+			'headers'  => $headers,
+			'body'     => $body,
+			'response' => array(
+				'code'    => $code,
+				'message' => 200 === $code ? 'OK' : 'Error',
+			),
+			'cookies'  => array(),
+			'filename' => null,
 		);
 	}
 }

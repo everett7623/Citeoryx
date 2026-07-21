@@ -71,6 +71,7 @@
 - 所有搜索控制台与 AI 密钥通过 `KeyStore` 加密存储
 - 已实现 Google Search Console / Bing 每日数据导入：按内容 URL 和最近确认日期写入本地 `cx_metrics_daily` 快照，使用 ID 游标分批续接
 - Google / Bing 支持显式连接验证、健康状态记录与连续导入失败告警；合法空数据不会被误判为连接失败
+- Google / Bing 对网络错误、429 和 5xx 最多尝试 3 次，支持有上限的 `Retry-After` 与指数退避；确定性 4xx 不重试
 - 搜索导入按日保存页面 × 查询快照；Google 同时记录国家和设备维度，报告页与 CSV 提供 28 天趋势及维度汇总
 - 站点报告及 CSV 已显示本地 28 天搜索点击与展现聚合
 
@@ -148,23 +149,20 @@
 | `assets/src/admin/components/Integrations.js` / `src/Admin/Notices.php` | 展示连接状态并在连续失败后通知集成管理员 |
 | `src/Domain/Metrics/MetricsRepository.php` | 幂等保存页面 × 查询 × 国家 × 设备快照，并提供 28 天维度聚合与每日趋势 |
 | `assets/src/admin/components/Reports.js` / `ReportTables.js` | 展示搜索趋势、热门查询、国家和设备表现 |
+| `src/Infrastructure/Http/RetryPolicy.php` | 为搜索 API 提供有上限的暂时性失败重试、指数退避与 `Retry-After` 解析 |
 
 ## 待开发 / 建议下一步
 
-1. **完善外部 API**
-   - 搜索 API 限流与暂时性失败的自动重试
-
-2. **内容规划与日历**
+1. **内容规划与日历**
    - 主题机会发现
    - 发布计划与过期内容提醒
 
-3. **报告与通知**
+2. **报告与通知**
    - 严重问题通知
    - PDF 报告导出（当前已支持后台汇总与 CSV）
 
-4. **测试与质量**
+3. **测试与质量**
    - Playwright E2E 测试
-   - 外部 API 限流、超时与失败重试测试
 
 ## 部署备忘
 
@@ -181,7 +179,7 @@
 - 已将 TypeScript 固定为与 `@wordpress/scripts@27` 兼容的 5.4.x；JS lint、React 构建与 CSS lint 均已成功（2026-07-21）。
 - 本机没有运行中的 WordPress 实例或可复用后台浏览器页面，首次设置尚未执行真实 E2E 回归。
 - Google 每个内容 URL/日期保存前 100 个查询 × 国家 × 设备组合；Bing 当前接口只提供查询维度，不提供国家和设备字段。
-- 搜索 API 已支持连接验证与连续导入失败告警；限流和暂时性失败的自动重试尚未实现。
+- 搜索 API 暂时性失败最多同步尝试 3 次、单次等待最多 2 秒；凭据、权限等确定性 4xx 会立即失败并进入健康状态记录。
 - Google Search Console 需要在 Google Cloud Console 创建 OAuth Web Client，并将插件显示的 callback URI 加入授权重定向 URI。
 - Bing Webmaster Tools 需要 API Key（Bing 后台“API 访问”）。
 - OpenAI / DeepSeek 使用需要单独配置 API Key；密钥不会返回给浏览器或 REST 响应。
