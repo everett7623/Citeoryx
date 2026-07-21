@@ -76,9 +76,9 @@ class GoogleSearchConsole implements SearchConsoleInterface {
 	 */
 	public function get_queries_for_url( string $url, string $start_date, string $end_date ): array {
 		$body = array(
-			'startDate'            => $start_date,
-			'endDate'              => $end_date,
-			'dimensions'           => array( 'query' ),
+			'startDate'             => $start_date,
+			'endDate'               => $end_date,
+			'dimensions'            => array( 'query' ),
 			'dimensionFilterGroups' => array(
 				array(
 					'filters' => array(
@@ -90,7 +90,7 @@ class GoogleSearchConsole implements SearchConsoleInterface {
 					),
 				),
 			),
-			'rowLimit' => 20,
+			'rowLimit'              => 20,
 		);
 
 		$data = $this->request( 'POST', '/sites/' . rawurlencode( $this->site_url ) . '/searchAnalytics/query', $body );

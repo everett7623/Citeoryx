@@ -28,7 +28,7 @@ class Autoloader {
 	 * @return void
 	 */
 	public static function load( string $class ): void {
-		$prefix = 'Citeoryx\\';
+		$prefix   = 'Citeoryx\\';
 		$base_dir = CITEORYX_PLUGIN_DIR . 'src/';
 
 		$len = strlen( $prefix );
@@ -37,7 +37,7 @@ class Autoloader {
 		}
 
 		$relative_class = substr( $class, $len );
-		$file = $base_dir . str_replace( '\\', '/', $relative_class ) . '.php';
+		$file           = $base_dir . str_replace( '\\', '/', $relative_class ) . '.php';
 
 		if ( file_exists( $file ) ) {
 			require $file;

@@ -59,16 +59,20 @@ class Assets {
 			'citeoryx-admin',
 			'citeoryxAdmin',
 			array(
-				'restUrl'     => esc_url_raw( rest_url( CITEORYX_REST_NAMESPACE ) ),
-				'nonce'       => wp_create_nonce( 'wp_rest' ),
-				'assetsUrl'   => CITEORYX_PLUGIN_URL . 'assets/',
-				'pluginUrl'   => CITEORYX_PLUGIN_URL,
-				'user'        => array(
-					'id'       => $current_user->ID,
-					'name'     => $current_user->display_name,
-					'canScan'  => current_user_can( Capabilities::RUN_SCANS ),
-					'canManageIssues' => current_user_can( Capabilities::MANAGE_ISSUES ),
-					'canSettings' => current_user_can( Capabilities::MANAGE_SETTINGS ),
+				'restUrl'   => esc_url_raw( rest_url( CITEORYX_REST_NAMESPACE ) ),
+				'nonce'     => wp_create_nonce( 'wp_rest' ),
+				'assetsUrl' => CITEORYX_PLUGIN_URL . 'assets/',
+				'pluginUrl' => CITEORYX_PLUGIN_URL,
+				'user'      => array(
+					'id'                    => $current_user->ID,
+					'name'                  => $current_user->display_name,
+					'canViewDashboard'      => current_user_can( Capabilities::VIEW_DASHBOARD ),
+					'canViewContent'        => current_user_can( Capabilities::VIEW_CONTENT ),
+					'canScan'               => current_user_can( Capabilities::RUN_SCANS ),
+					'canManageIssues'       => current_user_can( Capabilities::MANAGE_ISSUES ),
+					'canManageIntegrations' => current_user_can( Capabilities::MANAGE_INTEGRATIONS ),
+					'canSettings'           => current_user_can( Capabilities::MANAGE_SETTINGS ),
+					'canExport'             => current_user_can( Capabilities::EXPORT_DATA ),
 				),
 			)
 		);

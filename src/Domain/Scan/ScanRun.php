@@ -12,18 +12,18 @@ namespace Citeoryx\Domain\Scan;
  */
 class ScanRun {
 
-	public ?int $id = null;
-	public string $scan_type = '';
-	public string $status = 'pending';
-	public int $total_items = 0;
+	public ?int $id             = null;
+	public string $scan_type    = '';
+	public string $status       = 'pending';
+	public int $total_items     = 0;
 	public int $processed_items = 0;
-	public int $failed_items = 0;
+	public int $failed_items    = 0;
 	public string $trigger_type = 'manual';
-	public ?string $started_at = null;
+	public ?string $started_at  = null;
 	public ?string $finished_at = null;
-	public array $config = array();
-	public array $summary = array();
-	public ?string $error_log = null;
+	public array $config        = array();
+	public array $summary       = array();
+	public ?string $error_log   = null;
 
 	/**
 	 * Create from row.
@@ -32,19 +32,19 @@ class ScanRun {
 	 * @return self
 	 */
 	public static function from_row( object $row ): self {
-		$run                       = new self();
-		$run->id                   = (int) $row->id;
-		$run->scan_type            = $row->scan_type;
-		$run->status               = $row->status;
-		$run->total_items          = (int) $row->total_items;
-		$run->processed_items      = (int) $row->processed_items;
-		$run->failed_items         = (int) $row->failed_items;
-		$run->trigger_type         = $row->trigger_type;
-		$run->started_at           = $row->started_at;
-		$run->finished_at          = $row->finished_at;
-		$run->config               = ! empty( $row->config_json ) ? json_decode( $row->config_json, true ) ?: array() : array();
-		$run->summary              = ! empty( $row->summary_json ) ? json_decode( $row->summary_json, true ) ?: array() : array();
-		$run->error_log            = $row->error_log;
+		$run                  = new self();
+		$run->id              = (int) $row->id;
+		$run->scan_type       = $row->scan_type;
+		$run->status          = $row->status;
+		$run->total_items     = (int) $row->total_items;
+		$run->processed_items = (int) $row->processed_items;
+		$run->failed_items    = (int) $row->failed_items;
+		$run->trigger_type    = $row->trigger_type;
+		$run->started_at      = $row->started_at;
+		$run->finished_at     = $row->finished_at;
+		$run->config          = ! empty( $row->config_json ) ? json_decode( $row->config_json, true ) ?: array() : array();
+		$run->summary         = ! empty( $row->summary_json ) ? json_decode( $row->summary_json, true ) ?: array() : array();
+		$run->error_log       = $row->error_log;
 
 		return $run;
 	}

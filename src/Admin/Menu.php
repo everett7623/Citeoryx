@@ -23,7 +23,7 @@ class Menu {
 		add_menu_page(
 			__( 'Citeoryx', 'citeoryx' ),
 			__( 'Citeoryx', 'citeoryx' ),
-			Capabilities::VIEW_DASHBOARD,
+			Capabilities::VIEW_CONTENT,
 			'citeoryx-dashboard',
 			array( $this, 'render_app' ),
 			'dashicons-chart-area',
@@ -31,27 +31,24 @@ class Menu {
 		);
 
 		$submenus = array(
-			'dashboard'        => __( '总览', 'citeoryx' ),
-			'inventory'        => __( '内容资产', 'citeoryx' ),
-			'opportunities'      => __( '问题与机会', 'citeoryx' ),
-			'optimizer'          => __( '优化工作台', 'citeoryx' ),
-			'ai-discoverability' => __( 'AI 可发现性', 'citeoryx' ),
-			'planning'           => __( '内容规划', 'citeoryx' ),
-			'reports'            => __( '报告', 'citeoryx' ),
-			'settings'           => __( '设置', 'citeoryx' ),
+			'dashboard'    => array( __( '总览', 'citeoryx' ), Capabilities::VIEW_DASHBOARD ),
+			'inventory'    => array( __( '内容资产', 'citeoryx' ), Capabilities::VIEW_CONTENT ),
+			'issues'       => array( __( '问题与机会', 'citeoryx' ), Capabilities::VIEW_CONTENT ),
+			'optimizer'    => array( __( '优化工作台', 'citeoryx' ), Capabilities::VIEW_CONTENT ),
+			'integrations' => array( __( '集成', 'citeoryx' ), Capabilities::MANAGE_INTEGRATIONS ),
+			'reports'      => array( __( '报告', 'citeoryx' ), Capabilities::VIEW_DASHBOARD ),
+			'settings'     => array( __( '设置', 'citeoryx' ), Capabilities::MANAGE_SETTINGS ),
 		);
 
-		$first = true;
-		foreach ( $submenus as $slug => $label ) {
+		foreach ( $submenus as $slug => $menu ) {
 			add_submenu_page(
 				'citeoryx-dashboard',
-				$label,
-				$label,
-				Capabilities::VIEW_DASHBOARD,
-				'citeoryx-dashboard#/'. $slug,
-				$first ? array( $this, 'render_app' ) : '__return_null'
+				$menu[0],
+				$menu[0],
+				$menu[1],
+				'citeoryx-dashboard#/' . $slug,
+				array( $this, 'render_app' )
 			);
-			$first = false;
 		}
 	}
 

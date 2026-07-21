@@ -44,9 +44,9 @@ class BlockParser {
 
 		if ( ! empty( $block['blockName'] ) ) {
 			$flat[] = array(
-				'name'     => $block['blockName'],
-				'attrs'    => $block['attrs'] ?? array(),
-				'inner'    => $this->strip_inner_blocks( $block['innerHTML'] ?? '' ),
+				'name'  => $block['blockName'],
+				'attrs' => $block['attrs'] ?? array(),
+				'inner' => $this->strip_inner_blocks( $block['innerHTML'] ?? '' ),
 			);
 		}
 
@@ -66,7 +66,7 @@ class BlockParser {
 	 * @return string
 	 */
 	private function strip_inner_blocks( string $html ): string {
-		$text = strip_tags( $html );
+		$text = wp_strip_all_tags( $html );
 		return trim( $text );
 	}
 
@@ -77,13 +77,20 @@ class BlockParser {
 	 * @return array<int, int>
 	 */
 	public function count_headings( string $content ): array {
-		$counts = array( 1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0, 6 => 0 );
+		$counts = array(
+			1 => 0,
+			2 => 0,
+			3 => 0,
+			4 => 0,
+			5 => 0,
+			6 => 0,
+		);
 
 		if ( has_blocks( $content ) ) {
 			$blocks = $this->parse_blocks( $content );
 			foreach ( $blocks as $block ) {
 				if ( strpos( $block['name'] ?? '', 'heading' ) !== false ) {
-					$level = $block['attrs']['level'] ?? 2;
+					$level                  = $block['attrs']['level'] ?? 2;
 					$counts[ (int) $level ] = ( $counts[ (int) $level ] ?? 0 ) + 1;
 				}
 			}

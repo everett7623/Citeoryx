@@ -1,47 +1,90 @@
-import { useState, useEffect } from '@wordpress/element';
+import { useState, useEffect, useCallback } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
-import { Card, CardBody, CardHeader, Button, Spinner, SelectControl } from '@wordpress/components';
+import { getApiErrorMessage } from '../apiError';
+import {
+	Card,
+	CardBody,
+	CardHeader,
+	Button,
+	Spinner,
+	SelectControl,
+	Notice,
+} from '@wordpress/components';
 
 const Issues = () => {
+	const canExport = Boolean( window.citeoryxAdmin?.user?.canExport );
+	const canManageIssues = Boolean(
+		window.citeoryxAdmin?.user?.canManageIssues
+	);
 	const [ issues, setIssues ] = useState( [] );
 	const [ total, setTotal ] = useState( 0 );
 	const [ page, setPage ] = useState( 1 );
 	const [ loading, setLoading ] = useState( true );
 	const [ status, setStatus ] = useState( 'open' );
+	const [ error, setError ] = useState( null );
 
-	const fetchIssues = ( currentPage = page ) => {
-		setLoading( true );
-		const query = new URLSearchParams();
-		query.set( 'page', currentPage );
-		query.set( 'per_page', '20' );
-		query.set( 'status', status );
+	const fetchIssues = useCallback(
+		( currentPage ) => {
+			setLoading( true );
+			setError( null );
+			const query = new URLSearchParams();
+			query.set( 'page', currentPage );
+			query.set( 'per_page', '20' );
+			query.set( 'status', status );
 
-		apiFetch( { path: `citeoryx/v1/issues?${ query.toString() }` } )
-			.then( ( response ) => {
-				setIssues( response.data.items );
-				setTotal( response.data.total );
-			} )
-			.catch( () => setIssues( [] ) )
-			.finally( () => setLoading( false ) );
-	};
+			apiFetch( { path: `citeoryx/v1/issues?${ query.toString() }` } )
+				.then( ( response ) => {
+					setIssues( response.data.items );
+					setTotal( response.data.total );
+				} )
+				.catch( ( err ) =>
+					setError(
+						getApiErrorMessage(
+							err,
+							__( '无法加载问题列表。', 'citeoryx' )
+						)
+					)
+				)
+				.finally( () => setLoading( false ) );
+		},
+		[ status ]
+	);
 
 	useEffect( () => {
-		fetchIssues();
-	}, [ page, status ] );
+		fetchIssues( page );
+	}, [ fetchIssues, page ] );
 
 	const resolveIssue = ( id ) => {
+		setError( null );
 		apiFetch( {
 			path: `citeoryx/v1/issues/${ id }`,
 			method: 'PATCH',
 			data: { status: 'resolved' },
-		} ).then( () => fetchIssues() );
+		} )
+			.then( () => fetchIssues( page ) )
+			.catch( ( err ) =>
+				setError(
+					getApiErrorMessage(
+						err,
+						__( '无法更新问题。', 'citeoryx' )
+					)
+				)
+			);
 	};
 
 	const totalPages = Math.ceil( total / 20 );
 
 	const exportCSV = () => {
-		const headers = [ 'ID', 'Issue Code', 'Title', 'Category', 'Severity', 'Priority Score', 'Status' ];
+		const headers = [
+			'ID',
+			'Issue Code',
+			'Title',
+			'Category',
+			'Severity',
+			'Priority Score',
+			'Status',
+		];
 		const rows = issues.map( ( issue ) => [
 			issue.id,
 			issue.issue_code,
@@ -51,7 +94,16 @@ const Issues = () => {
 			issue.priority_score ?? '',
 			issue.status,
 		] );
-		const csv = [ headers, ...rows ].map( ( row ) => row.map( ( cell ) => `"${ String( cell ).replace( /"/g, '""' ) }"` ).join( ',' ) ).join( '\n' );
+		const csv = [ headers, ...rows ]
+			.map( ( row ) =>
+				row
+					.map(
+						( cell ) =>
+							`"${ String( cell ).replace( /"/g, '""' ) }"`
+					)
+					.join( ',' )
+			)
+			.join( '\n' );
 		const blob = new Blob( [ csv ], { type: 'text/csv;charset=utf-8;' } );
 		const url = URL.createObjectURL( blob );
 		const link = document.createElement( 'a' );
@@ -66,20 +118,47 @@ const Issues = () => {
 			<Card>
 				<CardHeader>{ __( '问题与机会', 'citeoryx' ) }</CardHeader>
 				<CardBody>
+					{ error && (
+						<Notice status="error" isDismissible={ false }>
+							{ error }
+						</Notice>
+					) }
 					<div className="citeoryx-filters">
 						<SelectControl
 							label={ __( '状态', 'citeoryx' ) }
 							value={ status }
 							options={ [
-								{ label: __( 'Open', 'citeoryx' ), value: 'open' },
-								{ label: __( 'Resolved', 'citeoryx' ), value: 'resolved' },
-								{ label: __( 'Ignored', 'citeoryx' ), value: 'ignored' },
+								{
+									label: __( 'Open', 'citeoryx' ),
+									value: 'open',
+								},
+								{
+									label: __( 'In progress', 'citeoryx' ),
+									value: 'in_progress',
+								},
+								{
+									label: __( 'Resolved', 'citeoryx' ),
+									value: 'resolved',
+								},
+								{
+									label: __( 'Ignored', 'citeoryx' ),
+									value: 'ignored',
+								},
 							] }
-							onChange={ ( value ) => { setStatus( value ); setPage( 1 ); } }
+							onChange={ ( value ) => {
+								setStatus( value );
+								setPage( 1 );
+							} }
 						/>
-						<Button variant="secondary" onClick={ exportCSV } disabled={ loading || issues.length === 0 }>
-							{ __( '导出 CSV', 'citeoryx' ) }
-						</Button>
+						{ canExport && (
+							<Button
+								variant="secondary"
+								onClick={ exportCSV }
+								disabled={ loading || issues.length === 0 }
+							>
+								{ __( '导出 CSV', 'citeoryx' ) }
+							</Button>
+						) }
 					</div>
 
 					{ loading && <Spinner /> }
@@ -104,11 +183,17 @@ const Issues = () => {
 									<td>{ issue.severity }</td>
 									<td>{ issue.priority_score ?? '-' }</td>
 									<td>
-										{ status === 'open' && (
-											<Button size="small" onClick={ () => resolveIssue( issue.id ) }>
-												{ __( '解决', 'citeoryx' ) }
-											</Button>
-										) }
+										{ canManageIssues &&
+											status === 'open' && (
+												<Button
+													size="small"
+													onClick={ () =>
+														resolveIssue( issue.id )
+													}
+												>
+													{ __( '解决', 'citeoryx' ) }
+												</Button>
+											) }
 									</td>
 								</tr>
 							) ) }
@@ -116,11 +201,19 @@ const Issues = () => {
 					</table>
 
 					<div className="citeoryx-pagination">
-						<Button disabled={ page <= 1 } onClick={ () => setPage( page - 1 ) }>
+						<Button
+							disabled={ page <= 1 }
+							onClick={ () => setPage( page - 1 ) }
+						>
 							{ __( '上一页', 'citeoryx' ) }
 						</Button>
-						<span>{ page } / { totalPages || 1 }</span>
-						<Button disabled={ page >= totalPages } onClick={ () => setPage( page + 1 ) }>
+						<span>
+							{ page } / { totalPages || 1 }
+						</span>
+						<Button
+							disabled={ page >= totalPages }
+							onClick={ () => setPage( page + 1 ) }
+						>
 							{ __( '下一页', 'citeoryx' ) }
 						</Button>
 					</div>

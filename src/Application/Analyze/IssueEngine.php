@@ -23,19 +23,22 @@ class IssueEngine {
 	private LinkRepository $link_repo;
 	private HealthScorer $health_scorer;
 	private AiReadinessScorer $ai_scorer;
+	private ContentStatusClassifier $status_classifier;
 
 	public function __construct(
 		IssueRepository $issue_repo,
 		ContentRepository $content_repo,
 		LinkRepository $link_repo,
 		HealthScorer $health_scorer,
-		AiReadinessScorer $ai_scorer
+		AiReadinessScorer $ai_scorer,
+		ContentStatusClassifier $status_classifier
 	) {
-		$this->issue_repo    = $issue_repo;
-		$this->content_repo   = $content_repo;
-		$this->link_repo      = $link_repo;
-		$this->health_scorer  = $health_scorer;
-		$this->ai_scorer      = $ai_scorer;
+		$this->issue_repo        = $issue_repo;
+		$this->content_repo      = $content_repo;
+		$this->link_repo         = $link_repo;
+		$this->health_scorer     = $health_scorer;
+		$this->ai_scorer         = $ai_scorer;
+		$this->status_classifier = $status_classifier;
 	}
 
 	/**
@@ -70,6 +73,7 @@ class IssueEngine {
 		$item->health_score       = $health['score'];
 		$item->health_confidence  = $health['confidence'];
 		$item->ai_readiness_score = $ai['score'];
+		$item->status             = $this->status_classifier->classify( $issues, $health['score'] );
 		$this->content_repo->save( $item );
 
 		return $saved;
@@ -106,7 +110,10 @@ class IssueEngine {
 				'high',
 				__( 'Canonical URL points elsewhere.', 'citeoryx' ),
 				__( 'The canonical URL differs from the page URL. Verify the intent.', 'citeoryx' ),
-				array( 'canonical' => $meta['seo_canonical'], 'url' => $item->canonical_url )
+				array(
+					'canonical' => $meta['seo_canonical'],
+					'url'       => $item->canonical_url,
+				)
 			);
 		}
 
@@ -176,7 +183,7 @@ class IssueEngine {
 		$meta   = $item->metadata;
 
 		$inbound = $this->link_repo->count_inbound( $item->id );
-		if ( $inbound === 0 && ( $meta['word_count'] ?? 0 ) > 200 ) {
+		if ( 0 === $inbound && ( $meta['word_count'] ?? 0 ) > 200 ) {
 			$issues[] = $this->issue(
 				'CX_LINK_ORPHANED',
 				'links',
@@ -254,16 +261,16 @@ class IssueEngine {
 	 * @return Issue
 	 */
 	private function issue( string $code, string $category, string $severity, string $confidence, string $title, string $recommendation, array $evidence ): Issue {
-		$issue                = new Issue();
-		$issue->issue_code    = $code;
-		$issue->category      = $category;
-		$issue->severity      = $severity;
-		$issue->confidence    = $confidence;
-		$issue->title         = $title;
+		$issue                 = new Issue();
+		$issue->issue_code     = $code;
+		$issue->category       = $category;
+		$issue->severity       = $severity;
+		$issue->confidence     = $confidence;
+		$issue->title          = $title;
 		$issue->recommendation = $recommendation;
-		$issue->evidence      = $evidence;
-		$issue->impact_score  = $this->severity_to_score( $severity );
-		$issue->effort_score  = 3;
+		$issue->evidence       = $evidence;
+		$issue->impact_score   = $this->severity_to_score( $severity );
+		$issue->effort_score   = 3;
 		$issue->priority_score = $this->compute_priority( $issue );
 
 		return $issue;
@@ -276,8 +283,17 @@ class IssueEngine {
 	 * @return float
 	 */
 	private function compute_priority( Issue $issue ): float {
-		$impact_map = array( 'critical' => 5, 'high' => 4, 'medium' => 3, 'low' => 2 );
-		$conf_map   = array( 'high' => 1.5, 'medium' => 1.2, 'low' => 1.0 );
+		$impact_map = array(
+			'critical' => 5,
+			'high'     => 4,
+			'medium'   => 3,
+			'low'      => 2,
+		);
+		$conf_map   = array(
+			'high'   => 1.5,
+			'medium' => 1.2,
+			'low'    => 1.0,
+		);
 
 		$impact = $impact_map[ $issue->severity ] ?? 2;
 		$conf   = $conf_map[ $issue->confidence ] ?? 1.0;
@@ -292,7 +308,12 @@ class IssueEngine {
 	 * @return float
 	 */
 	private function severity_to_score( string $severity ): float {
-		$map = array( 'critical' => 5, 'high' => 4, 'medium' => 3, 'low' => 2 );
+		$map = array(
+			'critical' => 5,
+			'high'     => 4,
+			'medium'   => 3,
+			'low'      => 2,
+		);
 		return $map[ $severity ] ?? 2;
 	}
 
@@ -315,7 +336,8 @@ class IssueEngine {
 		if ( empty( $codes ) ) {
 			$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 				$wpdb->prepare(
-					"UPDATE {$table} SET status = 'resolved', resolved_at = %s WHERE content_id = %d AND status = 'open'",
+					"UPDATE %i SET status = 'resolved', resolved_at = %s WHERE content_id = %d AND status IN ('open', 'in_progress')",
+					$table,
 					current_time( 'mysql' ),
 					$item->id
 				)
@@ -324,10 +346,13 @@ class IssueEngine {
 		}
 
 		$placeholders = implode( ',', array_fill( 0, count( $codes ), '%s' ) );
+		$query_args   = array_merge( array( $table, current_time( 'mysql' ), $item->id ), $codes );
 		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Dynamic placeholders match the issue-code array.
 			$wpdb->prepare(
-				"UPDATE {$table} SET status = 'resolved', resolved_at = %s WHERE content_id = %d AND status = 'open' AND issue_code NOT IN ({$placeholders})",
-				array_merge( array( current_time( 'mysql' ), $item->id ), $codes )
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Placeholder list is generated from a fixed %s token.
+				"UPDATE %i SET status = 'resolved', resolved_at = %s WHERE content_id = %d AND status IN ('open', 'in_progress') AND issue_code NOT IN ({$placeholders})",
+				$query_args
 			)
 		);
 	}

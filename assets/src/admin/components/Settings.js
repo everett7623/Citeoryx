@@ -1,90 +1,165 @@
-import { useState, useEffect } from '@wordpress/element';
+import { useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
-import { Card, CardBody, CardHeader, Button, TextControl, SelectControl, ToggleControl, Spinner, Notice } from '@wordpress/components';
+import {
+	Card,
+	CardBody,
+	CardHeader,
+	Button,
+	ToggleControl,
+	TextControl,
+	Notice,
+} from '@wordpress/components';
+import SiteProfileFields from './SiteProfileFields';
+import { getSettingsData } from '../settingsData';
+import { getApiErrorMessage } from '../apiError';
 
-const Settings = ( { onProfileSaved } ) => {
-	const [ settings, setSettings ] = useState( { auto_scan: true, remove_data_on_uninstall: false } );
-	const [ profile, setProfile ] = useState( {} );
-	const [ loading, setLoading ] = useState( true );
+const Settings = ( { initialData, onSaved } ) => {
+	const [ settings, setSettings ] = useState( initialData.settings );
+	const [ profile, setProfile ] = useState( initialData.profile );
+	const [ loading, setLoading ] = useState( false );
 	const [ saved, setSaved ] = useState( false );
-
-	useEffect( () => {
-		apiFetch( { path: 'citeoryx/v1/settings' } )
-			.then( ( response ) => {
-				setSettings( response.data.settings || {} );
-				setProfile( response.data.profile || {} );
-			} )
-			.finally( () => setLoading( false ) );
-	}, [] );
+	const [ error, setError ] = useState( null );
+	const [ notificationStatus, setNotificationStatus ] = useState(
+		initialData.notification_status
+	);
+	const [ testLoading, setTestLoading ] = useState( false );
+	const [ testResult, setTestResult ] = useState( null );
 
 	const save = () => {
+		setError( null );
+		setSaved( false );
+		setLoading( true );
 		apiFetch( {
 			path: 'citeoryx/v1/settings',
 			method: 'POST',
 			data: { settings, profile },
-		} ).then( () => {
-			setSaved( true );
-			setTimeout( () => setSaved( false ), 3000 );
-			if ( onProfileSaved ) {
-				onProfileSaved();
-			}
-		} );
+		} )
+			.then( ( response ) => {
+				const data = getSettingsData( response );
+				setSettings( data.settings );
+				setProfile( data.profile );
+				setNotificationStatus( data.notification_status );
+				setSaved( true );
+				if ( onSaved ) {
+					onSaved( data );
+				}
+			} )
+			.catch( ( err ) =>
+				setError(
+					getApiErrorMessage(
+						err,
+						__( '保存失败，请稍后重试。', 'citeoryx' )
+					)
+				)
+			)
+			.finally( () => setLoading( false ) );
 	};
 
-	if ( loading ) {
-		return <Spinner />;
-	}
+	const sendTest = () => {
+		setTestLoading( true );
+		setTestResult( null );
+		apiFetch( {
+			path: 'citeoryx/v1/notifications/test',
+			method: 'POST',
+			data: { email: settings.notification_email },
+		} )
+			.then( ( response ) => {
+				setNotificationStatus( response.data );
+				setTestResult( {
+					status: 'success',
+					message: response.data.message,
+				} );
+			} )
+			.catch( ( err ) =>
+				setTestResult( {
+					status: 'error',
+					message: getApiErrorMessage(
+						err,
+						__( '测试邮件发送失败。', 'citeoryx' )
+					),
+				} )
+			)
+			.finally( () => setTestLoading( false ) );
+	};
 
 	return (
 		<div className="citeoryx-settings">
+			{ error && (
+				<Notice status="error" isDismissible={ false }>
+					{ error }
+				</Notice>
+			) }
 			{ saved && (
 				<Notice status="success" isDismissible={ false }>
 					{ __( '设置已保存。', 'citeoryx' ) }
+				</Notice>
+			) }
+			{ testResult && (
+				<Notice status={ testResult.status } isDismissible={ false }>
+					{ testResult.message }
 				</Notice>
 			) }
 
 			<Card>
 				<CardHeader>{ __( '站点画像', 'citeoryx' ) }</CardHeader>
 				<CardBody>
-					<SelectControl
-						label={ __( '站点类型', 'citeoryx' ) }
-						value={ profile.site_type || '' }
-						options={ [
-							{ label: __( '请选择', 'citeoryx' ), value: '' },
-							{ label: __( '博客', 'citeoryx' ), value: 'blog' },
-							{ label: __( '企业站', 'citeoryx' ), value: 'corporate' },
-							{ label: __( '商城', 'citeoryx' ), value: 'shop' },
-							{ label: __( '媒体', 'citeoryx' ), value: 'media' },
-							{ label: __( '文档 / 知识库', 'citeoryx' ), value: 'docs' },
-							{ label: __( '本地服务', 'citeoryx' ), value: 'local' },
-						] }
-						onChange={ ( value ) => setProfile( { ...profile, site_type: value } ) }
+					<SiteProfileFields
+						profile={ profile }
+						options={ initialData.profile_options }
+						onChange={ setProfile }
 					/>
-					<SelectControl
-						label={ __( '主要目标', 'citeoryx' ) }
-						value={ profile.primary_goal || '' }
-						options={ [
-							{ label: __( '请选择', 'citeoryx' ), value: '' },
-							{ label: __( '流量', 'citeoryx' ), value: 'traffic' },
-							{ label: __( '询盘', 'citeoryx' ), value: 'leads' },
-							{ label: __( '销售', 'citeoryx' ), value: 'sales' },
-							{ label: __( '订阅', 'citeoryx' ), value: 'subscriptions' },
-							{ label: __( '品牌曝光', 'citeoryx' ), value: 'brand' },
-							{ label: __( '支持分流', 'citeoryx' ), value: 'support' },
-						] }
-						onChange={ ( value ) => setProfile( { ...profile, primary_goal: value } ) }
+				</CardBody>
+			</Card>
+
+			<Card>
+				<CardHeader>{ __( '邮件周报', 'citeoryx' ) }</CardHeader>
+				<CardBody>
+					<ToggleControl
+						label={ __( '启用每周邮件周报', 'citeoryx' ) }
+						checked={ settings.weekly_digest_enabled }
+						onChange={ ( value ) =>
+							setSettings( {
+								...settings,
+								weekly_digest_enabled: value,
+							} )
+						}
+						__nextHasNoMarginBottom
 					/>
 					<TextControl
-						label={ __( '主要语言', 'citeoryx' ) }
-						value={ profile.main_language || '' }
-						onChange={ ( value ) => setProfile( { ...profile, main_language: value } ) }
+						label={ __( '收件邮箱', 'citeoryx' ) }
+						type="email"
+						value={ settings.notification_email }
+						onChange={ ( value ) =>
+							setSettings( {
+								...settings,
+								notification_email: value,
+							} )
+						}
+						__nextHasNoMarginBottom
 					/>
-					<TextControl
-						label={ __( '主要地区', 'citeoryx' ) }
-						value={ profile.main_region || '' }
-						onChange={ ( value ) => setProfile( { ...profile, main_region: value } ) }
-					/>
+					<Button
+						variant="secondary"
+						onClick={ sendTest }
+						disabled={
+							loading ||
+							testLoading ||
+							! settings.notification_email
+						}
+						isBusy={ testLoading }
+					>
+						{ testLoading
+							? __( '发送中…', 'citeoryx' )
+							: __( '发送测试邮件', 'citeoryx' ) }
+					</Button>
+					{ 'never' !== notificationStatus.status && (
+						<p className="citeoryx-settings__status">
+							{ notificationStatus.message }
+							{ notificationStatus.attempted_at
+								? ` ${ notificationStatus.attempted_at }`
+								: '' }
+						</p>
+					) }
 				</CardBody>
 			</Card>
 
@@ -94,18 +169,34 @@ const Settings = ( { onProfileSaved } ) => {
 					<ToggleControl
 						label={ __( '启用自动扫描', 'citeoryx' ) }
 						checked={ settings.auto_scan }
-						onChange={ ( value ) => setSettings( { ...settings, auto_scan: value } ) }
+						onChange={ ( value ) =>
+							setSettings( { ...settings, auto_scan: value } )
+						}
+						__nextHasNoMarginBottom
 					/>
 					<ToggleControl
 						label={ __( '卸载时删除数据', 'citeoryx' ) }
 						checked={ settings.remove_data_on_uninstall }
-						onChange={ ( value ) => setSettings( { ...settings, remove_data_on_uninstall: value } ) }
+						onChange={ ( value ) =>
+							setSettings( {
+								...settings,
+								remove_data_on_uninstall: value,
+							} )
+						}
+						__nextHasNoMarginBottom
 					/>
 				</CardBody>
 			</Card>
 
-			<Button variant="primary" onClick={ save }>
-				{ __( '保存设置', 'citeoryx' ) }
+			<Button
+				variant="primary"
+				onClick={ save }
+				disabled={ loading || testLoading }
+				isBusy={ loading }
+			>
+				{ loading
+					? __( '保存中…', 'citeoryx' )
+					: __( '保存设置', 'citeoryx' ) }
 			</Button>
 		</div>
 	);

@@ -32,7 +32,7 @@ class ContentController extends BaseController {
 				array(
 					'methods'             => 'GET',
 					'callback'            => array( $this, 'list_content' ),
-					'permission_callback' => array( $this, 'get_permissions_check' ),
+					'permission_callback' => array( $this, 'list_permissions_check' ),
 				),
 			)
 		);
@@ -43,8 +43,8 @@ class ContentController extends BaseController {
 			array(
 				array(
 					'methods'             => 'GET',
-					'callback'            => array( $this, 'get_item' ),
-					'permission_callback' => array( $this, 'get_permissions_check' ),
+					'callback'            => array( $this, 'get_content_item' ),
+					'permission_callback' => array( $this, 'item_permissions_check' ),
 				),
 			)
 		);
@@ -67,17 +67,30 @@ class ContentController extends BaseController {
 	 *
 	 * @return bool
 	 */
-	public function get_permissions_check(): bool {
+	public function list_permissions_check(): bool {
 		return $this->check_cap( Capabilities::VIEW_CONTENT );
+	}
+
+	/**
+	 * Check access to one content item.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return bool
+	 */
+	public function item_permissions_check( WP_REST_Request $request ): bool {
+		return $this->list_permissions_check()
+			&& $this->can_access_content_id( (int) $request->get_param( 'id' ) );
 	}
 
 	/**
 	 * Scan permission check.
 	 *
+	 * @param WP_REST_Request $request Request.
 	 * @return bool
 	 */
-	public function scan_permissions_check(): bool {
-		return $this->check_cap( Capabilities::RUN_SCANS );
+	public function scan_permissions_check( WP_REST_Request $request ): bool {
+		return $this->check_cap( Capabilities::RUN_SCANS )
+			&& $this->can_access_content_id( (int) $request->get_param( 'id' ) );
 	}
 
 	/**
@@ -90,18 +103,21 @@ class ContentController extends BaseController {
 		$repo = $this->container->get( ContentRepository::class );
 
 		$filters = array();
-		if ( $request->get_param( 'status' ) ) {
-			$filters['status'] = sanitize_text_field( $request->get_param( 'status' ) );
+		foreach ( array( 'status', 'post_type', 'search' ) as $filter_key ) {
+			$value = $request->get_param( $filter_key );
+			if ( is_scalar( $value ) && '' !== (string) $value ) {
+				$filters[ $filter_key ] = sanitize_text_field( (string) $value );
+			}
 		}
-		if ( $request->get_param( 'post_type' ) ) {
-			$filters['post_type'] = sanitize_text_field( $request->get_param( 'post_type' ) );
-		}
-		if ( $request->get_param( 'search' ) ) {
-			$filters['search'] = sanitize_text_field( $request->get_param( 'search' ) );
+		$author_id = $this->content_author_scope();
+		if ( null !== $author_id ) {
+			$filters['author_id'] = $author_id;
 		}
 
-		$page     = max( 1, (int) $request->get_param( 'page' ) );
-		$per_page = min( 100, max( 1, (int) $request->get_param( 'per_page' ) ) );
+		$page_param     = $request->get_param( 'page' );
+		$per_page_param = $request->get_param( 'per_page' );
+		$page           = is_scalar( $page_param ) ? max( 1, (int) $page_param ) : 1;
+		$per_page       = is_scalar( $per_page_param ) ? min( 100, max( 1, (int) $per_page_param ) ) : 20;
 
 		$result = $repo->list( $filters, $page, $per_page );
 
@@ -120,7 +136,7 @@ class ContentController extends BaseController {
 	 * @param WP_REST_Request $request Request.
 	 * @return \WP_REST_Response
 	 */
-	public function get_item( WP_REST_Request $request ): \WP_REST_Response {
+	public function get_content_item( WP_REST_Request $request ): \WP_REST_Response {
 		$repo = $this->container->get( ContentRepository::class );
 		$item = $repo->find( (int) $request->get_param( 'id' ) );
 

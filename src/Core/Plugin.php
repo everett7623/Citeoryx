@@ -15,6 +15,7 @@ use Citeoryx\Infrastructure\Queue\Scheduler;
 use Citeoryx\Infrastructure\Database\SchemaManager;
 use Citeoryx\Support\Privacy;
 use Citeoryx\Integrations\SearchConsole\GoogleOAuth;
+use Citeoryx\Application\Notifications\WeeklyDigest;
 
 /**
  * Main plugin orchestrator.
@@ -44,7 +45,6 @@ class Plugin {
 	 */
 	public function run(): void {
 		$this->set_locale();
-		$this->register_capabilities();
 		$this->register_admin();
 		$this->register_rest();
 		$this->register_queue();
@@ -72,22 +72,7 @@ class Plugin {
 	 * @return void
 	 */
 	private function set_locale(): void {
-		add_action(
-			'plugins_loaded',
-			static function () {
-				load_plugin_textdomain( 'citeoryx', false, dirname( plugin_basename( CITEORYX_PLUGIN_FILE ) ) . '/languages' );
-			}
-		);
-	}
-
-	/**
-	 * Register custom capabilities.
-	 *
-	 * @return void
-	 */
-	private function register_capabilities(): void {
-		$capabilities = new Capabilities();
-		add_action( 'admin_init', array( $capabilities, 'assign' ) );
+		load_plugin_textdomain( 'citeoryx', false, dirname( plugin_basename( CITEORYX_PLUGIN_FILE ) ) . '/languages' );
 	}
 
 	/**
@@ -108,7 +93,10 @@ class Plugin {
 	}
 
 	public function handle_gsc_oauth_callback(): void {
-		if ( ! isset( $_GET['action'] ) || GoogleOAuth::REDIRECT_ACTION !== $_GET['action'] ) {
+		// OAuth callbacks validate the provider state token instead of a WordPress nonce.
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		$action = isset( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : '';
+		if ( GoogleOAuth::REDIRECT_ACTION !== $action ) {
 			return;
 		}
 
@@ -118,11 +106,12 @@ class Plugin {
 
 		$code  = isset( $_GET['code'] ) ? sanitize_text_field( wp_unslash( $_GET['code'] ) ) : '';
 		$state = isset( $_GET['state'] ) ? sanitize_text_field( wp_unslash( $_GET['state'] ) ) : '';
-		$oauth = new GoogleOAuth();
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		$oauth  = new GoogleOAuth();
 		$result = $code && $state && $oauth->handle_callback( $code, $state );
 
 		set_transient( 'citeoryx_gsc_connection_result', $result ? 'connected' : 'failed', 60 );
-		wp_safe_redirect( admin_url( 'admin.php?page=citeoryx' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=citeoryx-dashboard' ) );
 		exit;
 	}
 
@@ -147,6 +136,17 @@ class Plugin {
 		add_action( 'citeoryx_daily_incremental_scan', array( $scheduler, 'run_incremental_scan' ) );
 		add_action( 'citeoryx_weekly_health_recalc', array( $scheduler, 'recalc_health' ) );
 		add_action( 'citeoryx_weekly_link_check', array( $scheduler, 'check_links' ) );
+		add_action( 'citeoryx_daily_search_performance_import', array( $scheduler, 'import_search_performance' ) );
+		add_action( 'init', array( $scheduler, 'ensure_search_performance_schedule' ) );
+		add_action( 'citeoryx_recalc_health_batch', array( $scheduler, 'recalc_health_batch' ) );
+		add_action( 'citeoryx_check_links_batch', array( $scheduler, 'check_links_batch' ) );
+		add_action( 'citeoryx_import_search_performance_batch', array( $scheduler, 'import_search_performance_batch' ) );
+		add_action( 'citeoryx_scan_single_post', array( $scheduler, 'scan_single_post' ) );
+		add_action( 'citeoryx_run_scan', array( $scheduler, 'run_scan' ) );
+
+		$digest = $this->container->get( WeeklyDigest::class );
+		add_action( 'init', array( $digest, 'ensure_scheduled' ) );
+		add_action( WeeklyDigest::HOOK, array( $digest, 'send_scheduled' ) );
 	}
 
 	/**
@@ -166,6 +166,7 @@ class Plugin {
 	 */
 	private function run_migrations(): void {
 		$schema_manager = $this->container->get( SchemaManager::class );
-		add_action( 'plugins_loaded', array( $schema_manager, 'maybe_upgrade' ), 20 );
+		$schema_manager->maybe_upgrade();
+		Capabilities::maybe_upgrade();
 	}
 }

@@ -33,7 +33,8 @@ class IssueRepository {
 
 		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT * FROM {$this->table()} WHERE id = %d",
+				'SELECT * FROM %i WHERE id = %d',
+				$this->table(),
 				$id
 			)
 		);
@@ -55,6 +56,16 @@ class IssueRepository {
 		global $wpdb;
 
 		$now = current_time( 'mysql' );
+		if ( ! $issue->id && $issue->content_id && $issue->issue_code ) {
+			$existing = $this->find_latest_by_content_and_code( $issue->content_id, $issue->issue_code );
+			if ( $existing ) {
+				$issue->id               = $existing->id;
+				$issue->first_seen_at    = $existing->first_seen_at;
+				$issue->assigned_user_id = $existing->assigned_user_id;
+				$issue->ignored_until    = $existing->ignored_until;
+				$issue->status           = $this->status_for_refresh( $existing );
+			}
+		}
 
 		$data = array(
 			'content_id'       => $issue->content_id,
@@ -70,7 +81,7 @@ class IssueRepository {
 			'evidence_json'    => $issue->evidence ? wp_json_encode( $issue->evidence ) : null,
 			'recommendation'   => $issue->recommendation,
 			'last_seen_at'     => $now,
-			'resolved_at'     => $issue->resolved_at,
+			'resolved_at'      => $issue->resolved_at,
 			'ignored_until'    => $issue->ignored_until,
 			'assigned_user_id' => $issue->assigned_user_id,
 		);
@@ -97,6 +108,42 @@ class IssueRepository {
 	}
 
 	/**
+	 * Find the latest occurrence of an issue for a content item.
+	 *
+	 * @param int    $content_id Content ID.
+	 * @param string $issue_code Issue code.
+	 * @return Issue|null
+	 */
+	private function find_latest_by_content_and_code( int $content_id, string $issue_code ): ?Issue {
+		global $wpdb;
+
+		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				'SELECT * FROM %i WHERE content_id = %d AND issue_code = %s ORDER BY id DESC LIMIT 1',
+				$this->table(),
+				$content_id,
+				$issue_code
+			)
+		);
+
+		return $row ? Issue::from_row( $row ) : null;
+	}
+
+	/**
+	 * Preserve workflow state while refreshing an issue from analysis.
+	 *
+	 * @param Issue $existing Existing issue.
+	 * @return string
+	 */
+	private function status_for_refresh( Issue $existing ): string {
+		if ( 'ignored' === $existing->status && ( ! $existing->ignored_until || strtotime( $existing->ignored_until ) > time() ) ) {
+			return 'ignored';
+		}
+
+		return in_array( $existing->status, array( 'open', 'in_progress' ), true ) ? $existing->status : 'open';
+	}
+
+	/**
 	 * List issues.
 	 *
 	 * @param array<string, mixed> $filters Filters.
@@ -107,42 +154,53 @@ class IssueRepository {
 	public function list( array $filters = array(), int $page = 1, int $per_page = 20 ): array {
 		global $wpdb;
 
+		$from  = $this->table() . ' AS issue';
 		$where = array( '1=1' );
 		$args  = array();
 
+		if ( array_key_exists( 'author_id', $filters ) ) {
+			$content_table = $wpdb->prefix . CITEORYX_TABLE_CONTENT_ITEMS;
+			$from         .= " INNER JOIN {$content_table} AS content ON content.id = issue.content_id";
+			$from         .= " INNER JOIN {$wpdb->posts} AS posts ON posts.ID = content.object_id AND content.object_type = 'post'";
+			$where[]       = 'posts.post_author = %d';
+			$args[]        = max( 0, (int) $filters['author_id'] );
+		}
+
 		if ( ! empty( $filters['status'] ) ) {
-			$where[] = 'status = %s';
+			$where[] = 'issue.status = %s';
 			$args[]  = $filters['status'];
 		}
 		if ( ! empty( $filters['category'] ) ) {
-			$where[] = 'category = %s';
+			$where[] = 'issue.category = %s';
 			$args[]  = $filters['category'];
 		}
 		if ( ! empty( $filters['severity'] ) ) {
-			$where[] = 'severity = %s';
+			$where[] = 'issue.severity = %s';
 			$args[]  = $filters['severity'];
 		}
 		if ( ! empty( $filters['content_id'] ) ) {
-			$where[] = 'content_id = %d';
+			$where[] = 'issue.content_id = %d';
 			$args[]  = $filters['content_id'];
 		}
 
 		$where_sql = implode( ' AND ', $where );
 		$offset    = ( $page - 1 ) * $per_page;
 
-		$total = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$this->table()} WHERE {$where_sql}",
-				...$args
-			)
-		);
+		// Query fragments contain only internal table names and fixed filter clauses.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+		$count_sql = "SELECT COUNT(*) FROM {$from} WHERE {$where_sql}";
+		if ( ! empty( $args ) ) {
+			$count_sql = $wpdb->prepare( $count_sql, ...$args );
+		}
+		$total = (int) $wpdb->get_var( $count_sql ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
 		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT * FROM {$this->table()} WHERE {$where_sql} ORDER BY priority_score DESC, last_seen_at DESC LIMIT %d OFFSET %d",
+				"SELECT issue.* FROM {$from} WHERE {$where_sql} ORDER BY issue.priority_score DESC, issue.last_seen_at DESC LIMIT %d OFFSET %d",
 				...array_merge( $args, array( $per_page, $offset ) )
 			)
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
 
 		$items = array();
 		foreach ( $rows as $row ) {
@@ -178,6 +236,40 @@ class IssueRepository {
 			),
 			array( '%s', '%s' ),
 			array( '%d', '%s', '%s' )
+		);
+	}
+
+	/**
+	 * Count open issues grouped by a supported reporting dimension.
+	 *
+	 * @param string $dimension Dimension name.
+	 * @return array<int, array{label:string,count:int}>
+	 */
+	public function count_open_by( string $dimension ): array {
+		global $wpdb;
+
+		$columns = array( 'severity', 'category' );
+		if ( ! in_array( $dimension, $columns, true ) ) {
+			return array();
+		}
+
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT %i AS label, COUNT(*) AS count FROM %i WHERE status = 'open' GROUP BY %i ORDER BY count DESC, %i ASC",
+				$dimension,
+				$this->table(),
+				$dimension,
+				$dimension
+			),
+			ARRAY_A
+		);
+
+		return array_map(
+			static fn ( $row ) => array(
+				'label' => (string) $row['label'],
+				'count' => (int) $row['count'],
+			),
+			$rows ?: array()
 		);
 	}
 }

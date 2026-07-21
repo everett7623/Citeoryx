@@ -21,21 +21,22 @@ class HealthScorer {
 	 * @param array<IssueInput> $issues Issues.
 	 * @return array{score: float, confidence: string, components: array<string, float>}
 	 */
+	// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- Kept for scorer interface compatibility.
 	public function score( ContentItem $item, array $issues = array() ): array {
 		$components = array(
-			'discoverability' => 100,
+			'discoverability'    => 100,
 			'search_performance' => 100,
-			'freshness'       => 100,
-			'intent_coverage' => 100,
-			'answerability'   => 100,
-			'trust_evidence'  => 100,
-			'link_integrity'  => 100,
+			'freshness'          => 100,
+			'intent_coverage'    => 100,
+			'answerability'      => 100,
+			'trust_evidence'     => 100,
+			'link_integrity'     => 100,
 		);
 
 		$meta = $item->metadata;
 
 		// Discoverability.
-		if ( ! empty( $meta['seo_robots']['index'] ) && false === $meta['seo_robots']['index'] ) {
+		if ( isset( $meta['seo_robots']['index'] ) && false === $meta['seo_robots']['index'] ) {
 			$components['discoverability'] = 0;
 		}
 

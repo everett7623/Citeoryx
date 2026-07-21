@@ -11,7 +11,7 @@
 - Repository 隔离数据库；
 - Provider Adapter 隔离外部服务；
 - Feature Flag 控制实验功能；
-- 所有扫描增量化、可恢复、可追踪。
+- 所有扫描增量化、可恢复、可追踪；REST 只创建任务，后台按批次推进并持久化进度。
 
 ## 目录结构
 
@@ -33,6 +33,7 @@ citeoryx/
 │   ├── Application/          # 用例服务
 │   │   ├── Scan/
 │   │   ├── Analyze/
+│   │   ├── Notifications/
 │   │   ├── Prioritize/
 │   │   ├── Optimize/
 │   │   ├── Monitor/
@@ -93,6 +94,14 @@ citeoryx/
   → 提交更新通知
   → 观察 7 / 28 / 90 天效果
 ```
+
+### 后台扫描任务
+
+`POST /scans` 创建 `cx_scan_runs` 记录并立即返回。Action Scheduler 可用时使用异步 Action；否则使用 WordPress 单次 Cron。每个任务最多处理 50 条内容，完成一批后保存游标并继续排队，前端通过 `GET /scans/{id}` 轮询 `queued` / `running` / `completed` / `failed` 状态。
+
+### 邮件周报
+
+每周周报默认关闭，由 `WeeklyDigest` 使用本地内容与问题聚合生成纯文本邮件。任务不是固定秒数的重复 Cron，而是每次执行后依据 `wp_timezone()` 重新调度下周一 09:00 的单次事件，避免夏令时导致本地发送时间漂移；成功接受发送后写入 ISO 周期键，重复任务不会再次发送。
 
 ## 命名规范
 

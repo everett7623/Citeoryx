@@ -11,16 +11,18 @@ namespace Citeoryx\Core;
  * Capability definitions and role mapping.
  */
 class Capabilities {
+	private const MAPPING_VERSION        = '2';
+	private const MAPPING_VERSION_OPTION = 'citeoryx_capabilities_version';
 
-	public const VIEW_DASHBOARD    = 'citeoryx_view_dashboard';
-	public const VIEW_CONTENT      = 'citeoryx_view_content';
-	public const RUN_SCANS         = 'citeoryx_run_scans';
-	public const MANAGE_ISSUES     = 'citeoryx_manage_issues';
-	public const USE_AI            = 'citeoryx_use_ai';
-	public const APPLY_CHANGES     = 'citeoryx_apply_changes';
+	public const VIEW_DASHBOARD      = 'citeoryx_view_dashboard';
+	public const VIEW_CONTENT        = 'citeoryx_view_content';
+	public const RUN_SCANS           = 'citeoryx_run_scans';
+	public const MANAGE_ISSUES       = 'citeoryx_manage_issues';
+	public const USE_AI              = 'citeoryx_use_ai';
+	public const APPLY_CHANGES       = 'citeoryx_apply_changes';
 	public const MANAGE_INTEGRATIONS = 'citeoryx_manage_integrations';
-	public const MANAGE_SETTINGS   = 'citeoryx_manage_settings';
-	public const EXPORT_DATA       = 'citeoryx_export_data';
+	public const MANAGE_SETTINGS     = 'citeoryx_manage_settings';
+	public const EXPORT_DATA         = 'citeoryx_export_data';
 
 	/**
 	 * Get all capability slugs.
@@ -59,15 +61,23 @@ class Capabilities {
 				self::EXPORT_DATA,
 			),
 			'author'        => array(
-				self::VIEW_DASHBOARD,
 				self::VIEW_CONTENT,
 				self::MANAGE_ISSUES,
 			),
 			'contributor'   => array(
-				self::VIEW_DASHBOARD,
 				self::VIEW_CONTENT,
 			),
 		);
+
+		foreach ( array_keys( $map ) as $role_name ) {
+			$role = get_role( $role_name );
+			if ( ! $role ) {
+				continue;
+			}
+			foreach ( self::all() as $capability ) {
+				$role->remove_cap( $capability );
+			}
+		}
 
 		foreach ( $map as $role_name => $caps ) {
 			$role = get_role( $role_name );
@@ -77,6 +87,19 @@ class Capabilities {
 			foreach ( $caps as $cap ) {
 				$role->add_cap( $cap );
 			}
+		}
+
+		update_option( self::MAPPING_VERSION_OPTION, self::MAPPING_VERSION, false );
+	}
+
+	/**
+	 * Reconcile role mappings after a plugin upgrade.
+	 *
+	 * @return void
+	 */
+	public static function maybe_upgrade(): void {
+		if ( self::MAPPING_VERSION !== get_option( self::MAPPING_VERSION_OPTION, '' ) ) {
+			self::assign();
 		}
 	}
 }

@@ -46,6 +46,9 @@ class Activator {
 		if ( ! wp_next_scheduled( 'citeoryx_weekly_link_check' ) ) {
 			wp_schedule_event( time(), 'weekly', 'citeoryx_weekly_link_check' );
 		}
+		if ( ! wp_next_scheduled( 'citeoryx_daily_search_performance_import' ) ) {
+			wp_schedule_event( time(), 'daily', 'citeoryx_daily_search_performance_import' );
+		}
 	}
 
 	/**

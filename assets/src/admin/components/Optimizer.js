@@ -1,7 +1,16 @@
 import { useState, useEffect } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
-import { Card, CardBody, CardHeader, Button, SelectControl, Spinner, Notice, Badge } from '@wordpress/components';
+import { getApiErrorMessage } from '../apiError';
+import {
+	Card,
+	CardBody,
+	CardHeader,
+	Button,
+	SelectControl,
+	Spinner,
+	Notice,
+} from '@wordpress/components';
 
 const Optimizer = () => {
 	const [ contentId, setContentId ] = useState( '' );
@@ -15,7 +24,12 @@ const Optimizer = () => {
 		apiFetch( { path: 'citeoryx/v1/content?per_page=100' } )
 			.then( ( response ) => {
 				const list = response.data.items || [];
-				setItems( list.map( ( item ) => ( { label: item.canonical_url, value: item.id.toString() } ) ) );
+				setItems(
+					list.map( ( item ) => ( {
+						label: item.canonical_url,
+						value: item.id.toString(),
+					} ) )
+				);
 			} )
 			.catch( () => setItems( [] ) )
 			.finally( () => setItemLoading( false ) );
@@ -30,7 +44,11 @@ const Optimizer = () => {
 		setError( null );
 		apiFetch( { path: `citeoryx/v1/optimizer/${ contentId }` } )
 			.then( ( response ) => setData( response.data ) )
-			.catch( ( err ) => setError( err.message || __( '分析失败。', 'citeoryx' ) ) )
+			.catch( ( err ) =>
+				setError(
+					getApiErrorMessage( err, __( '分析失败。', 'citeoryx' ) )
+				)
+			)
 			.finally( () => setLoading( false ) );
 	};
 
@@ -57,19 +75,30 @@ const Optimizer = () => {
 
 			<Card>
 				<CardBody>
-					{ itemLoading ? <Spinner /> : (
+					{ itemLoading ? (
+						<Spinner />
+					) : (
 						<>
 							<SelectControl
 								label={ __( '选择内容', 'citeoryx' ) }
 								value={ contentId }
 								options={ [
-									{ label: __( '请选择', 'citeoryx' ), value: '' },
+									{
+										label: __( '请选择', 'citeoryx' ),
+										value: '',
+									},
 									...items,
 								] }
 								onChange={ ( value ) => setContentId( value ) }
 							/>
-							<Button variant="primary" onClick={ analyze } disabled={ loading }>
-								{ loading ? __( '分析中…', 'citeoryx' ) : __( '生成优化建议', 'citeoryx' ) }
+							<Button
+								variant="primary"
+								onClick={ analyze }
+								disabled={ loading }
+							>
+								{ loading
+									? __( '分析中…', 'citeoryx' )
+									: __( '生成优化建议', 'citeoryx' ) }
 							</Button>
 						</>
 					) }
@@ -83,41 +112,69 @@ const Optimizer = () => {
 						<CardBody>
 							<div className="citeoryx-stats">
 								<div className="citeoryx-stat">
-									<span className="citeoryx-stat__value">{ data.scores.health.score ?? '-' }</span>
-									<span className="citeoryx-stat__label">{ __( '健康分', 'citeoryx' ) }</span>
+									<span className="citeoryx-stat__value">
+										{ data.scores.health.score ?? '-' }
+									</span>
+									<span className="citeoryx-stat__label">
+										{ __( '健康分', 'citeoryx' ) }
+									</span>
 								</div>
 								<div className="citeoryx-stat">
-									<span className="citeoryx-stat__value">{ data.scores.aeo.score ?? '-' }</span>
-									<span className="citeoryx-stat__label">{ __( 'AI 可发现性', 'citeoryx' ) }</span>
+									<span className="citeoryx-stat__value">
+										{ data.scores.aeo.score ?? '-' }
+									</span>
+									<span className="citeoryx-stat__label">
+										{ __( 'AI 可发现性', 'citeoryx' ) }
+									</span>
 								</div>
 							</div>
 						</CardBody>
 					</Card>
 
 					<Card>
-						<CardHeader>{ __( '优化建议', 'citeoryx' ) }</CardHeader>
+						<CardHeader>
+							{ __( '优化建议', 'citeoryx' ) }
+						</CardHeader>
 						<CardBody>
 							{ data.recommendations.length === 0 ? (
-								<p>{ __( '暂无优化建议，内容状态良好。', 'citeoryx' ) }</p>
+								<p>
+									{ __(
+										'暂无优化建议，内容状态良好。',
+										'citeoryx'
+									) }
+								</p>
 							) : (
 								<ul className="citeoryx-recommendations">
-									{ data.recommendations.map( ( rec, index ) => (
-										<li key={ index }>
-											<div className="citeoryx-rec__header">
-												<Badge className={ `citeoryx-badge--${ rec.priority }` }>
-													{ rec.priority }
-												</Badge>
-												<strong>{ rec.title }</strong>
-												<span className="citeoryx-rec__category">{ categoryLabel( rec.category ) }</span>
-											</div>
-											<p>{ rec.description }</p>
-											{ rec.issue_id && (
-												<Button size="small" href={ `post.php?post=${ data.content.object_id }&action=edit` }>
-													{ rec.action }
-												</Button>
-											) }
-										</li>
-									) ) }
+									{ data.recommendations.map(
+										( rec, index ) => (
+											<li key={ index }>
+												<div className="citeoryx-rec__header">
+													<span
+														className={ `citeoryx-badge--${ rec.priority }` }
+													>
+														{ rec.priority }
+													</span>
+													<strong>
+														{ rec.title }
+													</strong>
+													<span className="citeoryx-rec__category">
+														{ categoryLabel(
+															rec.category
+														) }
+													</span>
+												</div>
+												<p>{ rec.description }</p>
+												{ rec.issue_id && (
+													<Button
+														size="small"
+														href={ `post.php?post=${ data.content.object_id }&action=edit` }
+													>
+														{ rec.action }
+													</Button>
+												) }
+											</li>
+										)
+									) }
 								</ul>
 							) }
 						</CardBody>

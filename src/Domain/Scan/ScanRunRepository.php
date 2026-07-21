@@ -60,7 +60,8 @@ class ScanRunRepository {
 
 		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT * FROM {$this->table()} WHERE id = %d",
+				'SELECT * FROM %i WHERE id = %d',
+				$this->table(),
 				$id
 			)
 		);
@@ -73,32 +74,99 @@ class ScanRunRepository {
 	}
 
 	/**
+	 * Find an existing queued or running scan.
+	 *
+	 * @return ScanRun|null
+	 */
+	public function find_running(): ?ScanRun {
+		global $wpdb;
+
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE status IN ('queued', 'running') ORDER BY id DESC LIMIT 1", $this->table() ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return $row ? ScanRun::from_row( $row ) : null;
+	}
+
+	/**
+	 * Mark a queued run as running.
+	 *
+	 * @param int $id Run ID.
+	 * @return bool True when this call acquired the queued run.
+	 */
+	public function mark_running( int $id ): bool {
+		global $wpdb;
+
+		$result = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$this->table(),
+			array(
+				'status'     => 'running',
+				'started_at' => current_time( 'mysql' ),
+			),
+			array(
+				'id'     => $id,
+				'status' => 'queued',
+			),
+			array( '%s', '%s' ),
+			array( '%d', '%s' )
+		);
+		return 1 === $result;
+	}
+
+	/**
 	 * Update progress.
 	 *
 	 * @param int    $id Scan run ID.
 	 * @param int    $processed Processed count.
 	 * @param int    $failed Failed count.
 	 * @param string $status Status.
+	 * @param int|null $total Total count when known.
 	 * @return void
 	 */
-	public function update_progress( int $id, int $processed, int $failed, string $status ): void {
+	public function update_progress( int $id, int $processed, int $failed, string $status, ?int $total = null ): void {
 		global $wpdb;
 
-		$data = array(
+		$data    = array(
 			'processed_items' => $processed,
 			'failed_items'    => $failed,
 			'status'          => $status,
 		);
+		$formats = array( '%d', '%d', '%s' );
+		if ( null !== $total ) {
+			$data['total_items'] = $total;
+			$formats[]           = '%d';
+		}
 
 		if ( in_array( $status, array( 'completed', 'failed', 'cancelled' ), true ) ) {
 			$data['finished_at'] = current_time( 'mysql' );
+			$formats[]           = '%s';
 		}
 
 		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$this->table(),
 			$data,
 			array( 'id' => $id ),
-			array( '%d', '%d', '%s', '%s' ),
+			$formats,
+			array( '%d' )
+		);
+	}
+
+	/**
+	 * Persist a failed task with a bounded error message.
+	 *
+	 * @param int    $id Run ID.
+	 * @param string $message Error message.
+	 * @return void
+	 */
+	public function mark_failed( int $id, string $message ): void {
+		global $wpdb;
+
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$this->table(),
+			array(
+				'status'      => 'failed',
+				'finished_at' => current_time( 'mysql' ),
+				'error_log'   => substr( sanitize_text_field( $message ), 0, 2000 ),
+			),
+			array( 'id' => $id ),
+			array( '%s', '%s', '%s' ),
 			array( '%d' )
 		);
 	}
@@ -114,11 +182,12 @@ class ScanRunRepository {
 		global $wpdb;
 
 		$offset = ( $page - 1 ) * $per_page;
-		$total  = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$this->table()}" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$total  = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', $this->table() ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
 		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT * FROM {$this->table()} ORDER BY started_at DESC LIMIT %d OFFSET %d",
+				'SELECT * FROM %i ORDER BY started_at DESC LIMIT %d OFFSET %d',
+				$this->table(),
 				$per_page,
 				$offset
 			)
