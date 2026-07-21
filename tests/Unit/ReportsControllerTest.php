@@ -30,6 +30,10 @@ class ReportsControllerTest extends WP_UnitTestCase {
 		$this->assertIsArray( $data['data']['issues']['category_counts'] );
 		$this->assertIsArray( $data['data']['issues']['top_items'] );
 		$this->assertIsArray( $data['data']['scans']['recent'] );
+		$this->assertIsArray( $data['data']['performance']['history'] );
+		$this->assertIsArray( $data['data']['performance']['dimensions']['queries'] );
+		$this->assertIsArray( $data['data']['performance']['dimensions']['countries'] );
+		$this->assertIsArray( $data['data']['performance']['dimensions']['devices'] );
 		$this->assertArrayHasKey( 'version', $data['data']['plugin'] );
 	}
 }

@@ -5,7 +5,6 @@ namespace Citeoryx\Application\Search;
 use Citeoryx\Domain\Content\ContentRepository;
 use Citeoryx\Domain\Metrics\MetricsRepository;
 use Citeoryx\Integrations\SearchConsole\BingWebmasterTools;
-use Citeoryx\Integrations\SearchConsole\GoogleOAuth;
 use Citeoryx\Integrations\SearchConsole\GoogleSearchConsole;
 use Citeoryx\Integrations\SearchConsole\SearchConsoleInterface;
 
@@ -35,10 +34,11 @@ class SearchPerformanceImporter {
 		$date              = $date ?: gmdate( 'Y-m-d', strtotime( '-3 days' ) );
 		$items             = $this->content_repo->list_after_id( $after_id, $limit );
 		$results           = array(
-			'processed' => 0,
-			'imported'  => 0,
-			'last_id'   => $after_id,
-			'complete'  => count( $items ) < $limit,
+			'processed'      => 0,
+			'imported'       => 0,
+			'dimension_rows' => 0,
+			'last_id'        => $after_id,
+			'complete'       => count( $items ) < $limit,
 		);
 		$provider_failures = array();
 		$provider_success  = array();
@@ -52,16 +52,23 @@ class SearchPerformanceImporter {
 					continue;
 				}
 
-				$metrics = $this->fetch_page_metrics( $provider, $item->canonical_url, $date );
+				$page_data = $this->fetch_page_metrics( $provider, $item->canonical_url, $date );
 				if ( $provider->get_last_error() ) {
 					$provider_failures[ $source ] = $provider->get_last_error();
 				} elseif ( ! isset( $provider_failures[ $source ] ) ) {
 					$provider_success[ $source ] = true;
 				}
-				if ( null === $metrics ) {
+				if ( null === $page_data ) {
 					continue;
 				}
-				$this->metrics_repo->save( (int) $item->id, $date, $source, $metrics );
+				$this->metrics_repo->save( (int) $item->id, $date, $source, $page_data['metrics'] );
+				$results['dimension_rows'] += $this->metrics_repo->save_query_pages(
+					(int) $item->id,
+					$source,
+					$date,
+					$date,
+					$page_data['rows']
+				);
 				++$results['imported'];
 			}
 		}
@@ -91,7 +98,15 @@ class SearchPerformanceImporter {
 	}
 
 	private function fetch_page_metrics( SearchConsoleInterface $provider, string $url, string $date ): ?array {
-		$rows = $provider->get_queries_for_url( $url, $date, $date );
+		$rows = $provider->get_queries_for_url(
+			$url,
+			$date,
+			$date,
+			array(
+				'dimensions' => array( 'query', 'country', 'device' ),
+				'row_limit'  => 100,
+			)
+		);
 		if ( empty( $rows ) ) {
 			return null;
 		}
@@ -106,10 +121,13 @@ class SearchPerformanceImporter {
 		}
 
 		return array(
-			'impressions'  => $impressions,
-			'clicks'       => $clicks,
-			'ctr'          => $impressions > 0 ? $clicks / $impressions : 0.0,
-			'position_avg' => $impressions > 0 ? $positions / $impressions : 0.0,
+			'metrics' => array(
+				'impressions'  => $impressions,
+				'clicks'       => $clicks,
+				'ctr'          => $impressions > 0 ? $clicks / $impressions : 0.0,
+				'position_avg' => $impressions > 0 ? $positions / $impressions : 0.0,
+			),
+			'rows'    => $rows,
 		);
 	}
 }

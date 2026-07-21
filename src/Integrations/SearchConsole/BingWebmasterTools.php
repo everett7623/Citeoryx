@@ -154,12 +154,13 @@ class BingWebmasterTools implements SearchConsoleInterface {
 	/**
 	 * Get top queries for a specific URL.
 	 *
-	 * @param string $url        URL.
-	 * @param string $start_date Start date.
-	 * @param string $end_date   End date.
+	 * @param string               $url        URL.
+	 * @param string               $start_date Start date.
+	 * @param string               $end_date   End date.
+	 * @param array<string, mixed> $options    Query options (reserved for parity).
 	 * @return array<int, array<string, mixed>>
 	 */
-	public function get_queries_for_url( string $url, string $start_date, string $end_date ): array {
+	public function get_queries_for_url( string $url, string $start_date, string $end_date, array $options = array() ): array {
 		$query = http_build_query(
 			array(
 				'siteUrl'   => $this->site_url,

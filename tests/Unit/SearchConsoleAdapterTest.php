@@ -62,6 +62,32 @@ class SearchConsoleAdapterTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Google dimension keys must map to stable row fields in request order.
+	 *
+	 * @return void
+	 */
+	public function test_google_maps_query_country_and_device_dimensions(): void {
+		$this->stub_http_response(
+			200,
+			'{"rows":[{"keys":["example query","usa","mobile"],"clicks":4,"impressions":40,"ctr":0.1,"position":3.5}]}'
+		);
+		$adapter = new GoogleSearchConsole( $this->connected_google_oauth() );
+
+		$rows = $adapter->get_queries_for_url(
+			home_url( '/example' ),
+			'2026-07-20',
+			'2026-07-20',
+			array( 'dimensions' => array( 'query', 'country', 'device' ) )
+		);
+
+		$this->assertCount( 1, $rows );
+		$this->assertSame( 'example query', $rows[0]['query'] );
+		$this->assertSame( 'usa', $rows[0]['country'] );
+		$this->assertSame( 'mobile', $rows[0]['device'] );
+		$this->assertSame( 10.0, $rows[0]['ctr'] );
+	}
+
+	/**
 	 * A malformed successful response must be reported as a provider error.
 	 *
 	 * @return void

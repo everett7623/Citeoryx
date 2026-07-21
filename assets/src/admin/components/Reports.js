@@ -12,6 +12,8 @@ import {
 } from '@wordpress/components';
 import {
 	DistributionTable,
+	DimensionTable,
+	PerformanceHistoryTable,
 	RecentScansTable,
 	TopIssuesTable,
 } from './ReportTables';
@@ -134,6 +136,25 @@ const Reports = () => {
 							</div>
 						</CardBody>
 					</Card>
+					<div className="citeoryx-reports__grid">
+						<PerformanceHistoryTable
+							items={ data.performance?.history }
+						/>
+						<DimensionTable
+							title={ __( '热门查询', 'citeoryx' ) }
+							items={ data.performance?.dimensions?.queries }
+						/>
+					</div>
+					<div className="citeoryx-reports__grid">
+						<DimensionTable
+							title={ __( '国家', 'citeoryx' ) }
+							items={ data.performance?.dimensions?.countries }
+						/>
+						<DimensionTable
+							title={ __( '设备', 'citeoryx' ) }
+							items={ data.performance?.dimensions?.devices }
+						/>
+					</div>
 					<div className="citeoryx-reports__grid">
 						<DistributionTable
 							title={ __( '内容状态', 'citeoryx' ) }
