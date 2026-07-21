@@ -59,10 +59,14 @@ class Privacy {
 	 * @param int    $page Page.
 	 * @return array{data: array<int, array<string, mixed>>, done: bool}
 	 */
+	// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- WordPress privacy callback signature.
 	public function export_data( string $email_address, int $page = 1 ): array {
 		$user = get_user_by( 'email', $email_address );
 		if ( ! $user ) {
-			return array( 'data' => array(), 'done' => true );
+			return array(
+				'data' => array(),
+				'done' => true,
+			);
 		}
 
 		$data = array(
@@ -85,6 +89,7 @@ class Privacy {
 	 * @param int    $page Page.
 	 * @return array{items_removed: bool, items_retained: bool, messages: array<string>, done: bool}
 	 */
+	// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- WordPress privacy callback signature.
 	public function erase_data( string $email_address, int $page = 1 ): array {
 		$user = get_user_by( 'email', $email_address );
 		if ( ! $user ) {
@@ -127,7 +132,8 @@ class Privacy {
 
 		return (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE assigned_user_id = %d",
+				'SELECT COUNT(*) FROM %i WHERE assigned_user_id = %d',
+				$table,
 				$user_id
 			)
 		);

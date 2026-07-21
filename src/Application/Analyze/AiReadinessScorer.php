@@ -22,23 +22,23 @@ class AiReadinessScorer {
 	 */
 	public function score( ContentItem $item ): array {
 		$components = array(
-			'access_eligibility'   => 100,
-			'answer_clarity'       => 100,
-			'entity_clarity'       => 100,
-			'evidence_trust'       => 100,
-			'structure_extract'    => 100,
-			'freshness'            => 100,
+			'access_eligibility' => 100,
+			'answer_clarity'     => 100,
+			'entity_clarity'     => 100,
+			'evidence_trust'     => 100,
+			'structure_extract'  => 100,
+			'freshness'          => 100,
 		);
 
 		$meta = $item->metadata;
 
 		// Access eligibility.
-		if ( ! empty( $meta['seo_robots']['index'] ) && false === $meta['seo_robots']['index'] ) {
+		if ( isset( $meta['seo_robots']['index'] ) && false === $meta['seo_robots']['index'] ) {
 			$components['access_eligibility'] = 0;
 		}
 
 		// Answer clarity.
-		$headings = $meta['headings'] ?? array();
+		$headings   = $meta['headings'] ?? array();
 		$word_count = $meta['word_count'] ?? 0;
 		if ( $word_count > 300 && ( $headings[2] ?? 0 ) < 2 ) {
 			$components['answer_clarity'] -= 25;
@@ -71,11 +71,11 @@ class AiReadinessScorer {
 
 		$weights = array(
 			'access_eligibility' => 0.25,
-			'answer_clarity'       => 0.20,
-			'entity_clarity'       => 0.15,
-			'evidence_trust'       => 0.15,
-			'structure_extract'    => 0.15,
-			'freshness'            => 0.10,
+			'answer_clarity'     => 0.20,
+			'entity_clarity'     => 0.15,
+			'evidence_trust'     => 0.15,
+			'structure_extract'  => 0.15,
+			'freshness'          => 0.10,
 		);
 
 		$score = 0;

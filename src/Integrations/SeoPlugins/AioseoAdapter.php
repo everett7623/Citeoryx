@@ -47,10 +47,10 @@ class AioseoAdapter implements SeoPluginAdapterInterface {
 	 * {@inheritdoc}
 	 */
 	public function get_robots( int $post_id ): array {
-		$robots = array();
-		$noindex = get_post_meta( $post_id, '_aioseo_noindex', true );
-		$robots['index'] = empty( $noindex );
-		$nofollow = get_post_meta( $post_id, '_aioseo_nofollow', true );
+		$robots           = array();
+		$noindex          = get_post_meta( $post_id, '_aioseo_noindex', true );
+		$robots['index']  = empty( $noindex );
+		$nofollow         = get_post_meta( $post_id, '_aioseo_nofollow', true );
 		$robots['follow'] = empty( $nofollow );
 		return $robots;
 	}

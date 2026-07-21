@@ -47,10 +47,10 @@ class SeopressAdapter implements SeoPluginAdapterInterface {
 	 * {@inheritdoc}
 	 */
 	public function get_robots( int $post_id ): array {
-		$robots = array();
-		$noindex = get_post_meta( $post_id, '_seopress_robots_index', true );
-		$robots['index'] = empty( $noindex );
-		$nofollow = get_post_meta( $post_id, '_seopress_robots_follow', true );
+		$robots           = array();
+		$noindex          = get_post_meta( $post_id, '_seopress_robots_index', true );
+		$robots['index']  = empty( $noindex );
+		$nofollow         = get_post_meta( $post_id, '_seopress_robots_follow', true );
 		$robots['follow'] = empty( $nofollow );
 		return $robots;
 	}

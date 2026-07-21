@@ -3,11 +3,10 @@
 /assets/build/
 /tests/coverage/
 .phpunit.result.cache
-composer.lock
-package-lock.json
 .env
 *.log
 .DS_Store
 .idea/
 .vscode/
+/.codex/
 *.zip

@@ -14,6 +14,7 @@ use Citeoryx\Application\Scan\ContentScanner;
 use Citeoryx\Application\Analyze\IssueEngine;
 use Citeoryx\Application\Analyze\HealthScorer;
 use Citeoryx\Application\Analyze\AiReadinessScorer;
+use Citeoryx\Application\Analyze\ContentStatusClassifier;
 use Citeoryx\Application\Scan\LinkChecker;
 use Citeoryx\Application\Optimize\Optimizer;
 use Citeoryx\Domain\Content\ContentRepository;
@@ -24,6 +25,11 @@ use Citeoryx\Domain\Scan\ScanRunRepository;
 use Citeoryx\Infrastructure\Cache\Transients;
 use Citeoryx\Infrastructure\Http\HttpClient;
 use Citeoryx\Infrastructure\Encryption\KeyStore;
+use Citeoryx\Application\Notifications\WeeklyDigest;
+use Citeoryx\Application\Search\SearchPerformanceImporter;
+use Citeoryx\Integrations\SearchConsole\BingWebmasterTools;
+use Citeoryx\Integrations\SearchConsole\GoogleOAuth;
+use Citeoryx\Integrations\SearchConsole\GoogleSearchConsole;
 
 /**
  * Lightweight service container.
@@ -48,10 +54,10 @@ class Container {
 	 * Constructor.
 	 */
 	public function __construct() {
-		$this->parameters['plugin_dir']  = CITEORYX_PLUGIN_DIR;
+		$this->parameters['plugin_dir'] = CITEORYX_PLUGIN_DIR;
 		$this->parameters['plugin_url'] = CITEORYX_PLUGIN_URL;
-		$this->parameters['version']     = CITEORYX_VERSION;
-		$this->parameters['db_version']  = CITEORYX_DB_VERSION;
+		$this->parameters['version']    = CITEORYX_VERSION;
+		$this->parameters['db_version'] = CITEORYX_DB_VERSION;
 	}
 
 	/**
@@ -83,7 +89,9 @@ class Container {
 				return new Scheduler(
 					$this->get( ContentScanner::class ),
 					$this->get( IssueEngine::class ),
-					$this->get( LinkChecker::class )
+					$this->get( LinkChecker::class ),
+					$this->get( ScanRunRepository::class ),
+					$this->get( SearchPerformanceImporter::class )
 				);
 			case SeoPluginAdapterFactory::class:
 				return new SeoPluginAdapterFactory();
@@ -99,12 +107,15 @@ class Container {
 					$this->get( ContentRepository::class ),
 					$this->get( LinkRepository::class ),
 					$this->get( HealthScorer::class ),
-					$this->get( AiReadinessScorer::class )
+					$this->get( AiReadinessScorer::class ),
+					$this->get( ContentStatusClassifier::class )
 				);
 			case HealthScorer::class:
 				return new HealthScorer();
 			case AiReadinessScorer::class:
 				return new AiReadinessScorer();
+			case ContentStatusClassifier::class:
+				return new ContentStatusClassifier();
 			case Optimizer::class:
 				return new Optimizer(
 					$this->get( ContentRepository::class ),
@@ -120,6 +131,19 @@ class Container {
 				return new LinkRepository();
 			case MetricsRepository::class:
 				return new MetricsRepository();
+			case GoogleOAuth::class:
+				return new GoogleOAuth();
+			case GoogleSearchConsole::class:
+				return new GoogleSearchConsole( $this->get( GoogleOAuth::class ) );
+			case BingWebmasterTools::class:
+				return new BingWebmasterTools();
+			case SearchPerformanceImporter::class:
+				return new SearchPerformanceImporter(
+					$this->get( ContentRepository::class ),
+					$this->get( MetricsRepository::class ),
+					$this->get( GoogleSearchConsole::class ),
+					$this->get( BingWebmasterTools::class )
+				);
 			case ScanRunRepository::class:
 				return new ScanRunRepository();
 			case Transients::class:
@@ -128,12 +152,18 @@ class Container {
 				return new HttpClient();
 			case KeyStore::class:
 				return new KeyStore();
+			case WeeklyDigest::class:
+				return new WeeklyDigest(
+					$this->get( ContentRepository::class ),
+					$this->get( IssueRepository::class )
+				);
 			case LinkChecker::class:
 				return new LinkChecker(
 					$this->get( LinkRepository::class ),
 					$this->get( HttpClient::class )
 				);
 			default:
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception messages are not rendered directly.
 				throw new \InvalidArgumentException( "Unknown service: {$class}" );
 		}
 	}
@@ -145,6 +175,7 @@ class Container {
 	 * @param mixed  $default Default value.
 	 * @return mixed
 	 */
+	// phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- Preserve the existing public API.
 	public function getParameter( string $key, $default = null ) {
 		return $this->parameters[ $key ] ?? $default;
 	}
@@ -156,9 +187,8 @@ class Container {
 	 * @param mixed  $value Parameter value.
 	 * @return void
 	 */
+	// phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- Preserve the existing public API.
 	public function setParameter( string $key, $value ): void {
 		$this->parameters[ $key ] = $value;
 	}
 }
-
-

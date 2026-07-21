@@ -25,6 +25,8 @@ class AiProviderFactory {
 		switch ( $provider ) {
 			case 'openai':
 				return new OpenAiProvider();
+			case 'deepseek':
+				return new DeepSeekProvider();
 			default:
 				return new NullAiProvider();
 		}

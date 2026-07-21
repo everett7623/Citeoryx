@@ -45,8 +45,16 @@ class SearchConsoleController extends BaseController {
 					'callback'            => array( $this, 'save_client' ),
 					'permission_callback' => array( $this, 'check_permission' ),
 					'args'                => array(
-						'client_id'     => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
-						'client_secret' => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field' ),
+						'client_id'     => array(
+							'required'          => true,
+							'type'              => 'string',
+							'sanitize_callback' => 'sanitize_text_field',
+						),
+						'client_secret' => array(
+							'required'          => true,
+							'type'              => 'string',
+							'sanitize_callback' => 'sanitize_text_field',
+						),
 					),
 				),
 			)
@@ -73,8 +81,14 @@ class SearchConsoleController extends BaseController {
 					'callback'            => array( $this, 'get_metrics' ),
 					'permission_callback' => array( $this, 'check_permission' ),
 					'args'                => array(
-						'start_date' => array( 'required' => false, 'type' => 'string' ),
-						'end_date'   => array( 'required' => false, 'type' => 'string' ),
+						'start_date' => array(
+							'required' => false,
+							'type'     => 'string',
+						),
+						'end_date'   => array(
+							'required' => false,
+							'type'     => 'string',
+						),
 					),
 				),
 			)
@@ -89,9 +103,19 @@ class SearchConsoleController extends BaseController {
 					'callback'            => array( $this, 'get_queries_for_url' ),
 					'permission_callback' => array( $this, 'check_permission' ),
 					'args'                => array(
-						'url'        => array( 'required' => true, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw' ),
-						'start_date' => array( 'required' => false, 'type' => 'string' ),
-						'end_date'   => array( 'required' => false, 'type' => 'string' ),
+						'url'        => array(
+							'required'          => true,
+							'type'              => 'string',
+							'sanitize_callback' => 'esc_url_raw',
+						),
+						'start_date' => array(
+							'required' => false,
+							'type'     => 'string',
+						),
+						'end_date'   => array(
+							'required' => false,
+							'type'     => 'string',
+						),
 					),
 				),
 			)
@@ -133,13 +157,15 @@ class SearchConsoleController extends BaseController {
 			delete_transient( 'citeoryx_gsc_connection_result' );
 		}
 
-		return $this->success( array(
-			'connected'         => $oauth->is_connected(),
-			'has_credentials'   => ! empty( $client['client_id'] ),
-			'auth_url'          => $oauth->get_auth_url(),
-			'redirect_uri'      => $oauth->get_redirect_uri(),
-			'connection_result' => $connection_result ?: null,
-		) );
+		return $this->success(
+			array(
+				'connected'         => $oauth->is_connected(),
+				'has_credentials'   => ! empty( $client['client_id'] ),
+				'auth_url'          => $oauth->get_auth_url(),
+				'redirect_uri'      => $oauth->get_redirect_uri(),
+				'connection_result' => $connection_result ?: null,
+			)
+		);
 	}
 
 	/**
@@ -155,10 +181,12 @@ class SearchConsoleController extends BaseController {
 			(string) $request->get_param( 'client_secret' )
 		);
 
-		return $this->success( array(
-			'saved'    => true,
-			'auth_url' => $oauth->get_auth_url(),
-		) );
+		return $this->success(
+			array(
+				'saved'    => true,
+				'auth_url' => $oauth->get_auth_url(),
+			)
+		);
 	}
 
 	/**
@@ -188,11 +216,13 @@ class SearchConsoleController extends BaseController {
 		$start = $request->get_param( 'start_date' ) ?: gmdate( 'Y-m-d', strtotime( '-35 days' ) );
 
 		$rows = $gsc->get_metrics( $start, $end );
-		return $this->success( array(
-			'start_date' => $start,
-			'end_date'   => $end,
-			'rows'       => $rows,
-		) );
+		return $this->success(
+			array(
+				'start_date' => $start,
+				'end_date'   => $end,
+				'rows'       => $rows,
+			)
+		);
 	}
 
 	/**
@@ -212,10 +242,12 @@ class SearchConsoleController extends BaseController {
 		$start = $request->get_param( 'start_date' ) ?: gmdate( 'Y-m-d', strtotime( '-35 days' ) );
 
 		$queries = $gsc->get_queries_for_url( $url, $start, $end );
-		return $this->success( array(
-			'url'     => $url,
-			'queries' => $queries,
-		) );
+		return $this->success(
+			array(
+				'url'     => $url,
+				'queries' => $queries,
+			)
+		);
 	}
 
 	/**

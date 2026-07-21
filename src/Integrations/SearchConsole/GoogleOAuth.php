@@ -14,11 +14,11 @@ use Citeoryx\Infrastructure\Encryption\KeyStore;
  */
 class GoogleOAuth {
 
-	const OPTION_CLIENT   = 'citeoryx_gsc_client';
-	const TOKEN_KEY       = 'gsc_tokens';
+	const OPTION_CLIENT     = 'citeoryx_gsc_client';
+	const TOKEN_KEY         = 'gsc_tokens';
 	const CLIENT_SECRET_KEY = 'gsc_client_secret';
-	const TRANSIENT_STATE = 'citeoryx_gsc_oauth_state';
-	const REDIRECT_ACTION = 'citeoryx_gsc_callback';
+	const TRANSIENT_STATE   = 'citeoryx_gsc_oauth_state';
+	const REDIRECT_ACTION   = 'citeoryx_gsc_callback';
 
 	const AUTH_URL  = 'https://accounts.google.com/o/oauth2/v2/auth';
 	const TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -121,7 +121,7 @@ class GoogleOAuth {
 		$response = wp_remote_post(
 			self::TOKEN_URL,
 			array(
-				'body' => array(
+				'body'    => array(
 					'code'          => $code,
 					'client_id'     => $client['client_id'],
 					'client_secret' => $client['client_secret'],
@@ -170,11 +170,11 @@ class GoogleOAuth {
 			return false;
 		}
 
-		$client = $this->get_client();
+		$client   = $this->get_client();
 		$response = wp_remote_post(
 			self::TOKEN_URL,
 			array(
-				'body' => array(
+				'body'    => array(
 					'refresh_token' => $tokens['refresh_token'],
 					'client_id'     => $client['client_id'],
 					'client_secret' => $client['client_secret'],
@@ -228,6 +228,6 @@ class GoogleOAuth {
 	 * @return string
 	 */
 	public function get_redirect_uri(): string {
-		return admin_url( 'admin.php?page=citeoryx&action=' . self::REDIRECT_ACTION );
+		return admin_url( 'admin.php?page=citeoryx-dashboard&action=' . self::REDIRECT_ACTION );
 	}
 }

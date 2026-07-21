@@ -34,7 +34,7 @@ class Notices {
 			return;
 		}
 
-		wp_safe_redirect( admin_url( 'admin.php?page=citeoryx' ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=citeoryx-dashboard' ) );
 		exit;
 	}
 

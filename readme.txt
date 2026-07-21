@@ -4,7 +4,7 @@ Tags: content-health, ai-discoverability, seo, content-inventory, gsc
 Requires at least: 6.6
 Tested up to: 6.8
 Requires PHP: 8.0
-Stable tag: 2.0.1
+Stable tag: 2.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -48,6 +48,10 @@ Citeoryx 与 Rank Math、Yoast、AIOSEO、SEOPress 等基础 SEO 插件兼容，
 不需要。安装后即可进行本地内容盘点和基础结构检查。Google Search Console、AI Provider 等集成为可选。
 
 == Changelog ==
+
+= 2.1.0 =
+* 完善首次站点画像、持久化后台扫描、报告页与每周邮件周报。
+* 修复设置接口被可选通知状态阻断及后台直接显示 HTML 错误的问题。
 
 = 2.0.1 =
 * 修复 onboarding 保存时 profile 参数类型错误导致的 PHP 8 致命错误。

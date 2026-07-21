@@ -50,7 +50,8 @@ class MetricsRepository {
 
 		$existing = $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT id FROM {$this->table()} WHERE content_id = %d AND metric_date = %s AND source = %s",
+				'SELECT id FROM %i WHERE content_id = %d AND metric_date = %s AND source = %s',
+				$this->table(),
 				$content_id,
 				$date,
 				$source
@@ -90,7 +91,8 @@ class MetricsRepository {
 
 		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT * FROM {$this->table()} WHERE content_id = %d AND source = %s AND metric_date >= DATE_SUB(CURDATE(), INTERVAL %d DAY) ORDER BY metric_date DESC",
+				'SELECT * FROM %i WHERE content_id = %d AND source = %s AND metric_date >= DATE_SUB(CURDATE(), INTERVAL %d DAY) ORDER BY metric_date DESC',
+				$this->table(),
 				$content_id,
 				$source,
 				$days
@@ -114,7 +116,8 @@ class MetricsRepository {
 
 		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT SUM(impressions) as impressions, SUM(clicks) as clicks, AVG(position_avg) as position_avg FROM {$this->table()} WHERE content_id = %d AND source = %s AND metric_date >= DATE_SUB(CURDATE(), INTERVAL %d DAY)",
+				'SELECT SUM(impressions) as impressions, SUM(clicks) as clicks, AVG(position_avg) as position_avg FROM %i WHERE content_id = %d AND source = %s AND metric_date >= DATE_SUB(CURDATE(), INTERVAL %d DAY)',
+				$this->table(),
 				$content_id,
 				$source,
 				$days
@@ -122,11 +125,35 @@ class MetricsRepository {
 			ARRAY_A
 		);
 
+		return $this->normalize_aggregate( is_array( $row ) ? $row : array() );
+	}
+
+	public function aggregate_site( int $days = 28 ): array {
+		global $wpdb;
+
+		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				'SELECT SUM(impressions) as impressions, SUM(clicks) as clicks, AVG(position_avg) as position_avg, MAX(metric_date) as last_imported_date FROM %i WHERE metric_date >= DATE_SUB(CURDATE(), INTERVAL %d DAY)',
+				$this->table(),
+				$days
+			),
+			ARRAY_A
+		);
+
+		$aggregate                       = $this->normalize_aggregate( is_array( $row ) ? $row : array() );
+		$aggregate['last_imported_date'] = $row['last_imported_date'] ?? null;
+		return $aggregate;
+	}
+
+	private function normalize_aggregate( array $row ): array {
+		$impressions = null !== ( $row['impressions'] ?? null ) ? (float) $row['impressions'] : null;
+		$clicks      = null !== ( $row['clicks'] ?? null ) ? (float) $row['clicks'] : null;
+
 		return array(
-			'impressions' => $row['impressions'] !== null ? (float) $row['impressions'] : null,
-			'clicks'        => $row['clicks'] !== null ? (float) $row['clicks'] : null,
-			'ctr'           => ( $row['impressions'] && $row['clicks'] ) ? (float) $row['clicks'] / (float) $row['impressions'] : null,
-			'position_avg'  => $row['position_avg'] !== null ? (float) $row['position_avg'] : null,
+			'impressions'  => $impressions,
+			'clicks'       => $clicks,
+			'ctr'          => null !== $impressions && $impressions > 0 && null !== $clicks ? $clicks / $impressions : null,
+			'position_avg' => null !== ( $row['position_avg'] ?? null ) ? (float) $row['position_avg'] : null,
 		);
 	}
 }

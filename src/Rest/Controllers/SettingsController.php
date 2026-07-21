@@ -7,6 +7,8 @@
 
 namespace Citeoryx\Rest\Controllers;
 
+use Citeoryx\Application\Settings\SiteProfileSchema;
+use Citeoryx\Application\Notifications\WeeklyDigest;
 use Citeoryx\Core\Capabilities;
 use WP_REST_Request;
 
@@ -55,15 +57,7 @@ class SettingsController extends BaseController {
 	 * @return \WP_REST_Response
 	 */
 	public function get_settings(): \WP_REST_Response {
-		$settings = get_option( 'citeoryx_settings', array() );
-		$profile  = get_option( 'citeoryx_site_profile', array() );
-
-		return $this->success(
-			array(
-				'settings' => $settings,
-				'profile'  => $profile,
-			)
-		);
+		return $this->success( $this->settings_payload() );
 	}
 
 	/**
@@ -74,22 +68,95 @@ class SettingsController extends BaseController {
 	 */
 	public function update_settings( WP_REST_Request $request ): \WP_REST_Response {
 		$params = $request->get_json_params();
-		if ( ! is_array( $params ) ) {
-			$params = array();
+		if ( ! is_array( $params ) || ! is_array( $params['settings'] ?? null ) || ! is_array( $params['profile'] ?? null ) ) {
+			return $this->error( __( '设置请求格式无效。', 'citeoryx' ), 400 );
 		}
 
-		$settings = is_array( $params['settings'] ?? null ) ? $this->sanitize_settings( $params['settings'] ) : array();
-		$profile  = is_array( $params['profile'] ?? null ) ? $this->sanitize_profile( $params['profile'] ) : array();
+		$settings_error = $this->validate_settings( $params['settings'] );
+		if ( $settings_error ) {
+			return $this->error( $settings_error, 400 );
+		}
+
+		$profile_schema = new SiteProfileSchema();
+		$profile        = $profile_schema->sanitize( $params['profile'] );
+		$profile_error  = $profile_schema->validation_error( $profile );
+		if ( $profile_error ) {
+			return $this->error( $profile_error, 400 );
+		}
+
+		$settings = $this->sanitize_settings( $params['settings'] );
 
 		update_option( 'citeoryx_settings', $settings );
 		update_option( 'citeoryx_site_profile', $profile );
+		update_option( 'citeoryx_remove_data_on_uninstall', $settings['remove_data_on_uninstall'] );
 
-		return $this->success(
-			array(
-				'settings' => $settings,
-				'profile'  => $profile,
-			)
+		return $this->success( $this->settings_payload() );
+	}
+
+	/**
+	 * Build the settings response using one stable contract.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function settings_payload(): array {
+		$profile_schema = new SiteProfileSchema();
+		$profile        = $profile_schema->sanitize( get_option( 'citeoryx_site_profile', array() ) );
+
+		return array(
+			'settings'            => $this->sanitize_settings( get_option( 'citeoryx_settings', array() ) ),
+			'profile'             => $profile,
+			'profile_complete'    => $profile_schema->is_complete( $profile ),
+			'profile_options'     => $profile_schema->options(),
+			'notification_status' => $this->notification_status(),
 		);
+	}
+
+	/**
+	 * Read optional notification state without blocking onboarding.
+	 *
+	 * @return array{status:string,message:string,attempted_at:string|null,recipient:string}
+	 */
+	private function notification_status(): array {
+		try {
+			return $this->container->get( WeeklyDigest::class )->get_status();
+		} catch ( \Throwable $error ) {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( '[Citeoryx] Unable to read notification status: ' . $error->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			}
+
+			return array(
+				'status'       => 'never',
+				'message'      => '',
+				'attempted_at' => null,
+				'recipient'    => '',
+			);
+		}
+	}
+
+	/**
+	 * Validate setting value types before casting them.
+	 *
+	 * @param array<string, mixed> $settings Settings.
+	 * @return string
+	 */
+	private function validate_settings( array $settings ): string {
+		foreach ( array( 'auto_scan', 'remove_data_on_uninstall', 'weekly_digest_enabled' ) as $key ) {
+			if ( array_key_exists( $key, $settings ) && ! is_bool( $settings[ $key ] ) ) {
+				return __( '设置包含无效的开关值。', 'citeoryx' );
+			}
+		}
+
+		if ( array_key_exists( 'notification_email', $settings ) ) {
+			if ( ! is_string( $settings['notification_email'] ) || ! is_email( sanitize_email( $settings['notification_email'] ) ) ) {
+				return __( '通知邮箱地址无效。', 'citeoryx' );
+			}
+		}
+
+		if ( array_key_exists( 'data_retention_days', $settings ) && ! is_int( $settings['data_retention_days'] ) ) {
+			return __( '数据保留天数必须为整数。', 'citeoryx' );
+		}
+
+		return '';
 	}
 
 	/**
@@ -100,10 +167,10 @@ class SettingsController extends BaseController {
 	 */
 	private function sanitize_settings( $settings ): array {
 		if ( ! is_array( $settings ) ) {
-			return array();
+			return $this->default_settings();
 		}
 
-		$sanitized = array();
+		$sanitized = $this->default_settings();
 		if ( isset( $settings['data_retention_days'] ) && is_scalar( $settings['data_retention_days'] ) ) {
 			$sanitized['data_retention_days'] = (int) $settings['data_retention_days'];
 		}
@@ -112,31 +179,28 @@ class SettingsController extends BaseController {
 		}
 		if ( isset( $settings['remove_data_on_uninstall'] ) && is_scalar( $settings['remove_data_on_uninstall'] ) ) {
 			$sanitized['remove_data_on_uninstall'] = (bool) $settings['remove_data_on_uninstall'];
-			update_option( 'citeoryx_remove_data_on_uninstall', $sanitized['remove_data_on_uninstall'] );
+		}
+		if ( isset( $settings['weekly_digest_enabled'] ) && is_scalar( $settings['weekly_digest_enabled'] ) ) {
+			$sanitized['weekly_digest_enabled'] = (bool) $settings['weekly_digest_enabled'];
+		}
+		if ( isset( $settings['notification_email'] ) && is_scalar( $settings['notification_email'] ) ) {
+			$sanitized['notification_email'] = sanitize_email( (string) $settings['notification_email'] );
 		}
 
 		return $sanitized;
 	}
 
 	/**
-	 * Sanitize profile.
+	 * Get default settings.
 	 *
-	 * @param mixed $profile Profile.
 	 * @return array<string, mixed>
 	 */
-	private function sanitize_profile( $profile ): array {
-		if ( ! is_array( $profile ) ) {
-			return array();
-		}
-
-		$allowed   = array( 'site_type', 'primary_goal', 'main_language', 'main_region', 'update_rhythm', 'risk_level', 'review_cycle_days' );
-		$sanitized = array();
-		foreach ( $allowed as $key ) {
-			if ( isset( $profile[ $key ] ) && is_scalar( $profile[ $key ] ) ) {
-				$sanitized[ $key ] = sanitize_text_field( (string) $profile[ $key ] );
-			}
-		}
-
-		return $sanitized;
+	private function default_settings(): array {
+		return array(
+			'auto_scan'                => true,
+			'remove_data_on_uninstall' => false,
+			'weekly_digest_enabled'    => false,
+			'notification_email'       => sanitize_email( (string) get_option( 'admin_email' ) ),
+		);
 	}
 }

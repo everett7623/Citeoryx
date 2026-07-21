@@ -18,9 +18,9 @@ class HttpClient {
 	 * @var array<string, mixed>
 	 */
 	private array $default_args = array(
-		'timeout'     => 30,
-		'redirects'   => 3,
-		'stream'      => false,
+		'timeout'             => 30,
+		'redirects'           => 3,
+		'stream'              => false,
 		'limit_response_size' => 5 * MB_IN_BYTES,
 	);
 
@@ -41,8 +41,7 @@ class HttpClient {
 			);
 		}
 
-		$args  = array_merge( $this->default_args, $args );
-		$start = microtime( true );
+		$args     = array_merge( $this->default_args, $args );
 		$response = wp_safe_remote_get( $url, $args );
 
 		if ( is_wp_error( $response ) ) {
@@ -82,7 +81,7 @@ class HttpClient {
 			);
 		}
 
-		$args = array_merge( $this->default_args, $args );
+		$args     = array_merge( $this->default_args, $args );
 		$response = wp_safe_remote_head( $url, $args );
 
 		if ( is_wp_error( $response ) ) {
@@ -111,32 +110,22 @@ class HttpClient {
 	 * @return bool
 	 */
 	private function is_safe_url( string $url ): bool {
+		if ( function_exists( 'wp_http_validate_url' ) && false === wp_http_validate_url( $url ) ) {
+			return false;
+		}
+
 		$parsed = wp_parse_url( $url );
-
-		if ( ! $parsed || ! isset( $parsed['host'] ) ) {
+		if ( ! $parsed || ! isset( $parsed['host'] ) || ! in_array( $parsed['scheme'] ?? '', array( 'http', 'https' ), true ) ) {
 			return false;
 		}
 
-		if ( ! in_array( $parsed['scheme'] ?? '', array( 'http', 'https' ), true ) ) {
+		$host = strtolower( trim( $parsed['host'], '[]' ) );
+		if ( in_array( $host, array( 'localhost', '0.0.0.0', '169.254.169.254' ), true ) ) {
 			return false;
 		}
 
-		$host = strtolower( $parsed['host'] );
-
-		$unsafe_hosts = array(
-			'localhost',
-			'127.0.0.1',
-			'0.0.0.0',
-			'::1',
-			'169.254.169.254',
-		);
-
-		if ( in_array( $host, $unsafe_hosts, true ) ) {
-			return false;
-		}
-
-		// Reject private IP ranges.
-		if ( filter_var( $host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) === false ) {
+		// Domain names are valid; private and reserved literal IPs are not.
+		if ( filter_var( $host, FILTER_VALIDATE_IP ) !== false && false === filter_var( $host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
 			return false;
 		}
 

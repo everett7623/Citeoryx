@@ -47,10 +47,10 @@ class YoastAdapter implements SeoPluginAdapterInterface {
 	 * {@inheritdoc}
 	 */
 	public function get_robots( int $post_id ): array {
-		$robots = array();
-		$index  = get_post_meta( $post_id, '_yoast_wpseo_meta-robots-noindex', true );
-		$robots['index'] = empty( $index );
-		$nofollow = get_post_meta( $post_id, '_yoast_wpseo_meta-robots-nofollow', true );
+		$robots           = array();
+		$index            = get_post_meta( $post_id, '_yoast_wpseo_meta-robots-noindex', true );
+		$robots['index']  = empty( $index );
+		$nofollow         = get_post_meta( $post_id, '_yoast_wpseo_meta-robots-nofollow', true );
 		$robots['follow'] = empty( $nofollow );
 		return $robots;
 	}

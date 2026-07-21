@@ -48,26 +48,28 @@ class ScanCommand extends \WP_CLI_Command {
 
 		\WP_CLI::log( __( 'Starting Citeoryx inventory scan...', 'citeoryx' ) );
 		$count = $scanner->scan_all( $post_types );
+		/* translators: %d: Number of content items scanned. */
 		\WP_CLI::success( sprintf( __( 'Scanned %d content items.', 'citeoryx' ), $count ) );
 
 		if ( ! empty( $assoc_args['analyze'] ) ) {
 			\WP_CLI::log( __( 'Re-analyzing content...', 'citeoryx' ) );
 			$content_repo = $container->get( \Citeoryx\Domain\Content\ContentRepository::class );
-			$page         = 1;
+			$after_id     = 0;
 			$analyzed     = 0;
 
 			while ( true ) {
-				$result = $content_repo->list( array(), $page, 100 );
-				if ( empty( $result['items'] ) ) {
+				$items = $content_repo->list_after_id( $after_id, 100 );
+				if ( empty( $items ) ) {
 					break;
 				}
-				foreach ( $result['items'] as $item ) {
+				foreach ( $items as $item ) {
 					$engine->analyze( $item );
+					$after_id = (int) $item->id;
 					++$analyzed;
 				}
-				++$page;
 			}
 
+			/* translators: %d: Number of content items analyzed. */
 			\WP_CLI::success( sprintf( __( 'Analyzed %d content items.', 'citeoryx' ), $analyzed ) );
 		}
 	}
@@ -89,21 +91,22 @@ class ScanCommand extends \WP_CLI_Command {
 		$content_repo = $container->get( \Citeoryx\Domain\Content\ContentRepository::class );
 
 		\WP_CLI::log( __( 'Starting Citeoryx analysis...', 'citeoryx' ) );
-		$page     = 1;
+		$after_id = 0;
 		$analyzed = 0;
 
 		while ( true ) {
-			$result = $content_repo->list( array(), $page, 100 );
-			if ( empty( $result['items'] ) ) {
+			$items = $content_repo->list_after_id( $after_id, 100 );
+			if ( empty( $items ) ) {
 				break;
 			}
-			foreach ( $result['items'] as $item ) {
+			foreach ( $items as $item ) {
 				$engine->analyze( $item );
+				$after_id = (int) $item->id;
 				++$analyzed;
 			}
-			++$page;
 		}
 
+		/* translators: %d: Number of content items analyzed. */
 		\WP_CLI::success( sprintf( __( 'Analyzed %d content items.', 'citeoryx' ), $analyzed ) );
 	}
 }

@@ -88,6 +88,45 @@
 	margin-bottom: 1rem;
 }
 
+.citeoryx-settings .components-card {
+	margin-bottom: 1rem;
+}
+
+.citeoryx-settings__status {
+	color: #646970;
+	font-size: 0.85rem;
+	margin-bottom: 0;
+}
+
+.citeoryx-field-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 1rem;
+}
+
+.citeoryx-content-types {
+	border: 0;
+	margin: 0 0 1rem;
+	padding: 0;
+}
+
+.citeoryx-content-types legend {
+	font-weight: 500;
+	margin-bottom: 0.5rem;
+}
+
+.citeoryx-content-types .components-checkbox-control {
+	display: inline-block;
+	margin: 0 1.25rem 0.5rem 0;
+}
+
+@media (max-width: 600px) {
+
+	.citeoryx-field-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
 .citeoryx-toggle-list {
 	display: flex;
 	flex-direction: column;
@@ -128,6 +167,16 @@
 	margin-left: auto;
 }
 
+.citeoryx-badge--high,
+.citeoryx-badge--medium,
+.citeoryx-badge--low {
+	display: inline-block;
+	padding: 2px 6px;
+	border-radius: 3px;
+	font-size: 0.75rem;
+	line-height: 1.4;
+}
+
 .citeoryx-badge--high {
 	background: #fef2f2;
 	color: #991b1b;
@@ -141,4 +190,40 @@
 .citeoryx-badge--low {
 	background: #f0fdf4;
 	color: #166534;
+}
+
+.citeoryx-reports__grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 1rem;
+	margin-top: 1rem;
+}
+
+.citeoryx-report-table {
+	border-collapse: collapse;
+	width: 100%;
+}
+
+.citeoryx-report-table th,
+.citeoryx-report-table td {
+	border-bottom: 1px solid #e0e0e0;
+	padding: 0.6rem 0.5rem;
+	text-align: left;
+}
+
+.citeoryx-report-table th:last-child,
+.citeoryx-report-table td:last-child {
+	text-align: right;
+}
+
+.citeoryx-reports__meta {
+	color: #646970;
+	font-size: 0.85rem;
+}
+
+@media (max-width: 600px) {
+
+	.citeoryx-reports__grid {
+		grid-template-columns: 1fr;
+	}
 }

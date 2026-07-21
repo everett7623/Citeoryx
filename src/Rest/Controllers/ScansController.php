@@ -8,9 +8,8 @@
 namespace Citeoryx\Rest\Controllers;
 
 use Citeoryx\Core\Capabilities;
-use Citeoryx\Domain\Scan\ScanRun;
 use Citeoryx\Domain\Scan\ScanRunRepository;
-use Citeoryx\Application\Scan\ContentScanner;
+use Citeoryx\Infrastructure\Queue\Scheduler;
 use WP_REST_Request;
 
 /**
@@ -66,46 +65,25 @@ class ScansController extends BaseController {
 	 * @return \WP_REST_Response
 	 */
 	public function create_scan( WP_REST_Request $request ): \WP_REST_Response {
-		$params    = $request->get_json_params();
-		$scan_type = ! empty( $params['scan_type'] ) ? sanitize_text_field( $params['scan_type'] ) : 'full';
-
-		$run               = new ScanRun();
-		$run->scan_type    = $scan_type;
-		$run->status       = 'running';
-		$run->trigger_type = 'manual';
-		$run->config       = array( 'requested_by' => get_current_user_id() );
-
-		$repo = $this->container->get( ScanRunRepository::class );
-		$id   = $repo->create( $run );
-
-		// Run synchronously for small sites; large sites should use Action Scheduler.
-		$scanner = $this->container->get( ContentScanner::class );
-		$issue_engine = $this->container->get( \Citeoryx\Application\Analyze\IssueEngine::class );
-
-		$run->id = $id;
-		$count   = 0;
-		$failed  = 0;
-
-		try {
-			$processed = $scanner->scan_all();
-			// Re-analyze top 500 recently modified items.
-			$content_repo = $this->container->get( \Citeoryx\Domain\Content\ContentRepository::class );
-			$recent       = $content_repo->list( array(), 1, 500 );
-			foreach ( $recent['items'] as $item ) {
-				$issue_engine->analyze( $item );
-				++$count;
-			}
-
-			$repo->update_progress( $id, $count, $failed, 'completed' );
-		} catch ( \Throwable $e ) {
-			++$failed;
-			$repo->update_progress( $id, $count, $failed, 'failed' );
-			return $this->error( $e->getMessage(), 500 );
+		$params = $request->get_json_params();
+		$params = is_array( $params ) ? $params : array();
+		$value  = $params['scan_type'] ?? 'full';
+		if ( ! is_scalar( $value ) ) {
+			return $this->error( __( 'Invalid scan type.', 'citeoryx' ), 400 );
+		}
+		$scan_type = sanitize_text_field( (string) $value );
+		if ( ! in_array( $scan_type, array( 'full', 'incremental' ), true ) ) {
+			return $this->error( __( 'Invalid scan type.', 'citeoryx' ), 400 );
 		}
 
-		$run = $repo->find( $id );
+		$scheduler = $this->container->get( Scheduler::class );
+		$run       = $scheduler->enqueue_scan(
+			$scan_type,
+			'manual',
+			array( 'requested_by' => get_current_user_id() )
+		);
 
-		return $this->success( $run ? $run->to_array() : array( 'id' => $id ) );
+		return $this->success( $run->to_array(), 202 );
 	}
 
 	/**

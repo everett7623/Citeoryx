@@ -14,6 +14,9 @@
 - Provider Response Mapping；
 - Encryption；
 - 权限。
+- Author / Contributor 的作者级内容、问题与优化建议访问边界。
+- 周报调度、周期幂等和邮件请求契约。
+- Settings 首次加载不受可选通知状态异常影响，管理端不会直接显示 HTML 错误正文。
 
 ### 集成测试
 
@@ -55,6 +58,15 @@ composer phpcs
 npm run lint:js
 npm run lint:css
 ```
+
+首次运行 PHP 测试前，需要可用的 MySQL 和 Bash 环境：
+
+```bash
+composer test-install
+composer test
+```
+
+GitHub Actions 会对 Node.js 前端检查以及 PHP 8.0–8.4 / WordPress 6.6 和最新版本组合自动执行质量门禁。WPCS 使用项目级 `phpcs.xml.dist` 执行 `WordPress-Extra` 规则，并作为阻断条件运行；规则集仅排除与 Composer PSR-4 架构及既有领域代码风格冲突的文件命名、保留字参数名和短三元表达式规则。
 
 ## PHP 测试配置
 

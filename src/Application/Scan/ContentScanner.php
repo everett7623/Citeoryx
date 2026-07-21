@@ -102,12 +102,19 @@ class ContentScanner {
 
 		$this->link_repo->delete_by_source( $item->id );
 
-		$site_url = trailingslashit( home_url() );
+		$site_host = strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
 
 		foreach ( $links as $link_data ) {
-			$url        = $link_data['url'];
-			$resolved   = $this->resolve_url( $url, $canonical );
-			$is_internal = strpos( $resolved, $site_url ) === 0;
+			$url = $link_data['url'];
+			if ( ! $this->is_trackable_url( $url ) ) {
+				continue;
+			}
+			$resolved = $this->resolve_url( $url, $canonical );
+			if ( ! $resolved ) {
+				continue;
+			}
+			$resolved_host = strtolower( (string) wp_parse_url( $resolved, PHP_URL_HOST ) );
+			$is_internal   = $site_host && $resolved_host === $site_host;
 
 			if ( $is_internal ) {
 				$metadata['internal_links'] = ( $metadata['internal_links'] ?? 0 ) + 1;
@@ -117,16 +124,16 @@ class ContentScanner {
 
 			$target_item = $this->content_repo->find_by_url_hash( md5( $resolved ) );
 
-			$link                     = new Link();
-			$link->source_content_id  = $item->id;
-			$link->target_content_id  = $target_item ? $target_item->id : null;
-			$link->target_url         = $resolved;
-			$link->target_url_hash    = md5( $resolved );
-			$link->anchor_text        = $link_data['anchor'];
-			$link->link_context       = 'content';
-			$link->rel_flags          = $link_data['rel'];
-			$link->is_internal        = $is_internal;
-			$link->http_status        = null;
+			$link                    = new Link();
+			$link->source_content_id = $item->id;
+			$link->target_content_id = $target_item ? $target_item->id : null;
+			$link->target_url        = $resolved;
+			$link->target_url_hash   = md5( $resolved );
+			$link->anchor_text       = $link_data['anchor'];
+			$link->link_context      = 'content';
+			$link->rel_flags         = $link_data['rel'];
+			$link->is_internal       = $is_internal;
+			$link->http_status       = null;
 
 			$this->link_repo->save( $link );
 		}
@@ -144,9 +151,7 @@ class ContentScanner {
 	 * @return int Number of scanned items.
 	 */
 	public function scan_all( array $post_types = array() ): int {
-		if ( empty( $post_types ) ) {
-			$post_types = get_post_types( array( 'public' => true ), 'names' );
-		}
+		$post_types = $this->get_scan_post_types( $post_types );
 
 		$count = 0;
 		foreach ( $post_types as $post_type ) {
@@ -160,12 +165,138 @@ class ContentScanner {
 			);
 
 			foreach ( $posts as $post_id ) {
-				$this->scan_post( (int) $post_id, $post_type );
-				++$count;
+				if ( $this->scan_post( (int) $post_id, $post_type ) ) {
+					++$count;
+				}
 			}
 		}
 
 		return $count;
+	}
+
+	/**
+	 * Scan one bounded batch for an asynchronous task.
+	 *
+	 * @param array<string> $post_types Post types.
+	 * @param int           $offset Query offset.
+	 * @param int           $limit Batch size.
+	 * @param string|null   $modified_after Only include newer content.
+	 * @return array{items: array<ContentItem>, scanned: int, failed: int, next_offset: int, complete: bool}
+	 */
+	public function scan_batch( array $post_types, int $offset = 0, int $limit = 50, ?string $modified_after = null ): array {
+		$post_types = $this->get_scan_post_types( $post_types );
+		$limit      = max( 1, min( 100, $limit ) );
+		if ( empty( $post_types ) ) {
+			return array(
+				'items'       => array(),
+				'scanned'     => 0,
+				'failed'      => 0,
+				'next_offset' => max( 0, $offset ),
+				'complete'    => true,
+			);
+		}
+		$query_args = array(
+			'post_type'      => $post_types,
+			'post_status'    => array( 'publish', 'future', 'draft', 'private' ),
+			'posts_per_page' => $limit,
+			'offset'         => max( 0, $offset ),
+			'orderby'        => 'ID',
+			'order'          => 'ASC',
+			'fields'         => 'ids',
+		);
+
+		if ( $modified_after ) {
+			$query_args['date_query'] = array(
+				array(
+					'column' => 'post_modified',
+					'after'  => $modified_after,
+				),
+			);
+		}
+
+		$post_ids = get_posts( $query_args );
+		$items    = array();
+		$failed   = 0;
+
+		foreach ( $post_ids as $post_id ) {
+			$post = get_post( (int) $post_id );
+			$item = $post ? $this->scan_post( (int) $post_id, $post->post_type ) : null;
+			if ( $item ) {
+				$items[] = $item;
+			} else {
+				++$failed;
+			}
+		}
+
+		return array(
+			'items'       => $items,
+			'scanned'     => count( $items ),
+			'failed'      => $failed,
+			'next_offset' => max( 0, $offset ) + count( $post_ids ),
+			'complete'    => count( $post_ids ) < $limit,
+		);
+	}
+
+	/**
+	 * Count the content selected for a scan without loading every post.
+	 *
+	 * @param array<string> $post_types Post types.
+	 * @param string|null   $modified_after Only include newer content.
+	 * @return int
+	 */
+	public function count_items( array $post_types, ?string $modified_after = null ): int {
+		$post_types = $this->get_scan_post_types( $post_types );
+		if ( empty( $post_types ) ) {
+			return 0;
+		}
+		$query_args = array(
+			'post_type'      => $post_types,
+			'post_status'    => array( 'publish', 'future', 'draft', 'private' ),
+			'posts_per_page' => 1,
+			'no_found_rows'  => false,
+			'fields'         => 'ids',
+		);
+
+		if ( $modified_after ) {
+			$query_args['date_query'] = array(
+				array(
+					'column' => 'post_modified',
+					'after'  => $modified_after,
+				),
+			);
+		}
+
+		$query = new \WP_Query( $query_args );
+		return (int) $query->found_posts;
+	}
+
+	/**
+	 * Resolve requested post types against the current site and saved profile.
+	 *
+	 * @param array<string> $requested Requested post types.
+	 * @return array<string>
+	 */
+	public function get_scan_post_types( array $requested = array() ): array {
+		$allowed = get_post_types(
+			array(
+				'public'  => true,
+				'show_ui' => true,
+			),
+			'names'
+		);
+		$allowed = array_values( array_diff( $allowed, array( 'attachment' ) ) );
+
+		if ( ! empty( $requested ) ) {
+			return array_values( array_intersect( $requested, $allowed ) );
+		}
+
+		$profile  = get_option( 'citeoryx_site_profile', array() );
+		$selected = is_array( $profile ) && ! empty( $profile['core_content_types'] )
+			? (array) $profile['core_content_types']
+			: array();
+		$selected = array_values( array_intersect( $selected, $allowed ) );
+
+		return ! empty( $selected ) ? $selected : $allowed;
 	}
 
 	/**
@@ -176,16 +307,38 @@ class ContentScanner {
 	 * @return string
 	 */
 	private function resolve_url( string $url, string $base ): string {
+		$url = trim( $url );
+		if ( '' === $url ) {
+			return '';
+		}
 		if ( strpos( $url, '#' ) === 0 ) {
 			return $base . $url;
+		}
+		if ( strpos( $url, '//' ) === 0 ) {
+			$scheme = wp_parse_url( $base, PHP_URL_SCHEME ) ?: ( is_ssl() ? 'https' : 'http' );
+			return $scheme . ':' . $url;
+		}
+		if ( in_array( wp_parse_url( $url, PHP_URL_SCHEME ), array( 'http', 'https' ), true ) ) {
+			return $url;
 		}
 		if ( strpos( $url, '/' ) === 0 && strpos( $url, '//' ) !== 0 ) {
 			return home_url( $url );
 		}
-		if ( strpos( $url, 'http' ) !== 0 ) {
-			return home_url( $url );
+		if ( strpos( $url, '?' ) === 0 ) {
+			return $base . $url;
 		}
-		return $url;
+		return home_url( '/' . ltrim( $url, '/' ) );
+	}
+
+	/**
+	 * Determine whether a link can be checked over HTTP.
+	 *
+	 * @param string $url Raw link URL.
+	 * @return bool
+	 */
+	private function is_trackable_url( string $url ): bool {
+		$scheme = wp_parse_url( trim( $url ), PHP_URL_SCHEME );
+		return null === $scheme || in_array( strtolower( $scheme ), array( 'http', 'https' ), true );
 	}
 
 	/**

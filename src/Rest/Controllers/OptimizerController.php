@@ -31,7 +31,7 @@ class OptimizerController extends BaseController {
 				array(
 					'methods'             => 'GET',
 					'callback'            => array( $this, 'get_recommendations' ),
-					'permission_callback' => array( $this, 'can_manage_issues' ),
+					'permission_callback' => array( $this, 'can_view_recommendations' ),
 					'args'                => array(
 						'id' => array(
 							'required'          => true,
@@ -65,9 +65,11 @@ class OptimizerController extends BaseController {
 	/**
 	 * Permission callback.
 	 *
+	 * @param WP_REST_Request $request Request.
 	 * @return bool
 	 */
-	public function can_manage_issues(): bool {
-		return current_user_can( Capabilities::MANAGE_ISSUES );
+	public function can_view_recommendations( WP_REST_Request $request ): bool {
+		return current_user_can( Capabilities::VIEW_CONTENT )
+			&& $this->can_access_content_id( (int) $request->get_param( 'id' ) );
 	}
 }

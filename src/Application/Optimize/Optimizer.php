@@ -48,7 +48,14 @@ class Optimizer {
 			);
 		}
 
-		$issues = $this->issue_repo->list( array( 'content_id' => $content_id, 'status' => 'open' ), 1, 100 );
+		$issues = $this->issue_repo->list(
+			array(
+				'content_id' => $content_id,
+				'status'     => 'open',
+			),
+			1,
+			100
+		);
 		$issues = $issues['items'];
 		$meta   = $item->metadata;
 
@@ -72,7 +79,7 @@ class Optimizer {
 			);
 		}
 
-		$headings = $meta['headings'] ?? array();
+		$headings      = $meta['headings'] ?? array();
 		$heading_count = is_array( $headings ) ? array_sum( $headings ) : 0;
 		if ( $heading_count < 2 ) {
 			$recommendations[] = array(
@@ -114,7 +121,7 @@ class Optimizer {
 	 */
 	private function map_issue_to_recommendation( object $issue ): array {
 		$templates = array(
-			'CX_INDEX_NOINDEX' => array(
+			'CX_INDEX_NOINDEX'            => array(
 				'category' => 'discoverability',
 				'title'    => __( '检查 noindex 设置', 'citeoryx' ),
 				'action'   => __( '查看 SEO 设置', 'citeoryx' ),
@@ -124,37 +131,37 @@ class Optimizer {
 				'title'    => __( '修正 Canonical', 'citeoryx' ),
 				'action'   => __( '编辑 SEO 设置', 'citeoryx' ),
 			),
-			'CX_CONTENT_STALE' => array(
+			'CX_CONTENT_STALE'            => array(
 				'category' => 'content',
 				'title'    => __( '更新过时内容', 'citeoryx' ),
 				'action'   => __( '编辑更新', 'citeoryx' ),
 			),
-			'CX_CONTENT_THIN_VALUE' => array(
+			'CX_CONTENT_THIN_VALUE'       => array(
 				'category' => 'content',
 				'title'    => __( '增强内容深度', 'citeoryx' ),
 				'action'   => __( '扩展内容', 'citeoryx' ),
 			),
-			'CX_CONTENT_TITLE_STRUCTURE' => array(
+			'CX_CONTENT_TITLE_STRUCTURE'  => array(
 				'category' => 'structure',
 				'title'    => __( '添加 H1 标题', 'citeoryx' ),
 				'action'   => __( '编辑内容', 'citeoryx' ),
 			),
-			'CX_LINK_ORPHANED' => array(
+			'CX_LINK_ORPHANED'            => array(
 				'category' => 'links',
 				'title'    => __( '增加内链引用', 'citeoryx' ),
 				'action'   => __( '添加内链', 'citeoryx' ),
 			),
-			'CX_LINK_BROKEN_EXTERNAL' => array(
+			'CX_LINK_BROKEN_EXTERNAL'     => array(
 				'category' => 'links',
 				'title'    => __( '修复失效外链', 'citeoryx' ),
 				'action'   => __( '检查链接', 'citeoryx' ),
 			),
-			'CX_AEO_EVIDENCE_MISSING' => array(
+			'CX_AEO_EVIDENCE_MISSING'     => array(
 				'category' => 'aeo',
 				'title'    => __( '补充事实依据', 'citeoryx' ),
 				'action'   => __( '添加引用/数据', 'citeoryx' ),
 			),
-			'CX_AEO_AUTHOR_UNCLEAR' => array(
+			'CX_AEO_AUTHOR_UNCLEAR'       => array(
 				'category' => 'aeo',
 				'title'    => __( '标注作者与来源', 'citeoryx' ),
 				'action'   => __( '完善作者信息', 'citeoryx' ),

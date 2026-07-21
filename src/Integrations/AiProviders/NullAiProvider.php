@@ -30,9 +30,9 @@ class NullAiProvider implements AiProviderInterface {
 	 */
 	public function suggest_improvements( string $content, array $context = array() ): array {
 		return array(
-			'configured' => false,
+			'configured'  => false,
 			'suggestions' => array(),
-			'message' => __( 'No AI provider is configured.', 'citeoryx' ),
+			'message'     => __( 'No AI provider is configured.', 'citeoryx' ),
 		);
 	}
 
@@ -46,8 +46,8 @@ class NullAiProvider implements AiProviderInterface {
 	public function analyze_discoverability( string $content, array $context = array() ): array {
 		return array(
 			'configured' => false,
-			'score' => 0,
-			'message' => __( 'No AI provider is configured.', 'citeoryx' ),
+			'score'      => 0,
+			'message'    => __( 'No AI provider is configured.', 'citeoryx' ),
 		);
 	}
 }

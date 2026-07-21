@@ -80,7 +80,8 @@ class LinkRepository {
 
 		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT * FROM {$this->table()} WHERE source_content_id = %d AND target_url_hash = %s",
+				'SELECT * FROM %i WHERE source_content_id = %d AND target_url_hash = %s',
+				$this->table(),
 				$source_content_id,
 				$target_url_hash
 			)
@@ -104,7 +105,8 @@ class LinkRepository {
 
 		return (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$this->table()} WHERE target_content_id = %d AND is_internal = 1",
+				'SELECT COUNT(*) FROM %i WHERE target_content_id = %d AND is_internal = 1',
+				$this->table(),
 				$content_id
 			)
 		);
@@ -121,7 +123,8 @@ class LinkRepository {
 
 		return (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$this->table()} WHERE source_content_id = %d",
+				'SELECT COUNT(*) FROM %i WHERE source_content_id = %d',
+				$this->table(),
 				$content_id
 			)
 		);
@@ -138,7 +141,8 @@ class LinkRepository {
 
 		return (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$this->table()} WHERE source_content_id = %d AND is_internal = 0 AND http_status >= 400",
+				'SELECT COUNT(*) FROM %i WHERE source_content_id = %d AND is_internal = 0 AND (http_status = 0 OR http_status >= 400)',
+				$this->table(),
 				$content_id
 			)
 		);
@@ -156,9 +160,13 @@ class LinkRepository {
 		$table_links   = $this->table();
 
 		$results = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			"SELECT ci.id FROM {$table_content} ci
-			LEFT JOIN {$table_links} l ON ci.id = l.target_content_id AND l.is_internal = 1
-			WHERE l.id IS NULL AND ci.object_type = 'post'"
+			$wpdb->prepare(
+				"SELECT ci.id FROM %i ci
+				LEFT JOIN %i l ON ci.id = l.target_content_id AND l.is_internal = 1
+				WHERE l.id IS NULL AND ci.object_type = 'post'",
+				$table_content,
+				$table_links
+			)
 		);
 
 		return array_map( 'intval', $results );
@@ -184,17 +192,18 @@ class LinkRepository {
 	 * Get links for HTTP status check.
 	 *
 	 * @param int $limit Number of links.
-	 * @param int $offset Offset.
+	 * @param int $after_id Exclusive link ID cursor.
 	 * @return array<Link>
 	 */
-	public function get_for_status_check( int $limit = 50, int $offset = 0 ): array {
+	public function get_for_status_check( int $limit = 50, int $after_id = 0 ): array {
 		global $wpdb;
 
 		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"SELECT * FROM {$this->table()} WHERE is_internal = 0 ORDER BY last_checked_at ASC, id ASC LIMIT %d OFFSET %d",
-				$limit,
-				$offset
+				'SELECT * FROM %i WHERE is_internal = 0 AND id > %d ORDER BY id ASC LIMIT %d',
+				$this->table(),
+				max( 0, $after_id ),
+				max( 1, min( 100, $limit ) )
 			)
 		);
 
@@ -219,9 +228,9 @@ class LinkRepository {
 		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$this->table(),
 			array(
-				'http_status'      => $status,
-				'last_checked_at'  => current_time( 'mysql' ),
-				'last_error'       => $error,
+				'http_status'     => $status,
+				'last_checked_at' => current_time( 'mysql' ),
+				'last_error'      => $error,
 			),
 			array( 'id' => $id ),
 			array( '%d', '%s', '%s' ),

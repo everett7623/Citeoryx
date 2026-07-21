@@ -14,9 +14,9 @@ use Citeoryx\Infrastructure\Encryption\KeyStore;
  */
 class OpenAiProvider implements AiProviderInterface {
 
-	const KEY_NAME   = 'openai_api_key';
-	const API_URL    = 'https://api.openai.com/v1/chat/completions';
-	const MODEL      = 'gpt-4o-mini';
+	const KEY_NAME = 'openai_api_key';
+	const API_URL  = 'https://api.openai.com/v1/chat/completions';
+	const MODEL    = 'gpt-4o-mini';
 
 	/**
 	 * Check if configured.
@@ -55,7 +55,10 @@ class OpenAiProvider implements AiProviderInterface {
 	 */
 	public function suggest_improvements( string $content, array $context = array() ): array {
 		if ( ! $this->is_configured() ) {
-			return array( 'configured' => false, 'suggestions' => array() );
+			return array(
+				'configured'  => false,
+				'suggestions' => array(),
+			);
 		}
 
 		$title  = $context['title'] ?? '';
@@ -94,7 +97,10 @@ class OpenAiProvider implements AiProviderInterface {
 	 */
 	public function analyze_discoverability( string $content, array $context = array() ): array {
 		if ( ! $this->is_configured() ) {
-			return array( 'configured' => false, 'score' => 0 );
+			return array(
+				'configured' => false,
+				'score'      => 0,
+			);
 		}
 
 		$prompt = sprintf(
@@ -129,14 +135,19 @@ class OpenAiProvider implements AiProviderInterface {
 					'Authorization' => 'Bearer ' . $this->get_api_key(),
 					'Content-Type'  => 'application/json',
 				),
-				'body'    => wp_json_encode( array(
-					'model'       => self::MODEL,
-					'messages'    => array(
-						array( 'role' => 'user', 'content' => $prompt ),
-					),
-					'temperature' => 0.3,
-					'max_tokens'  => 1024,
-				) ),
+				'body'    => wp_json_encode(
+					array(
+						'model'       => self::MODEL,
+						'messages'    => array(
+							array(
+								'role'    => 'user',
+								'content' => $prompt,
+							),
+						),
+						'temperature' => 0.3,
+						'max_tokens'  => 1024,
+					)
+				),
 				'timeout' => 30,
 			)
 		);
@@ -146,7 +157,7 @@ class OpenAiProvider implements AiProviderInterface {
 		}
 
 		$code = wp_remote_retrieve_response_code( $response );
-		if ( $code !== 200 ) {
+		if ( 200 !== $code ) {
 			return '';
 		}
 

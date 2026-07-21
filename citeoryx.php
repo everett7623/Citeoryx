@@ -3,7 +3,7 @@
  * Plugin Name: Citeoryx
  * Plugin URI:  https://citeoryx.com
  * Description: WordPress 内容健康度持续监控、优化与 AI 可发现性引擎
- * Version:     2.0.1
+ * Version:     2.1.0
  * Author:      everettlabs
  * License:     GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CITEORYX_VERSION', '2.0.1' );
+define( 'CITEORYX_VERSION', '2.1.0' );
 define( 'CITEORYX_PLUGIN_FILE', __FILE__ );
 define( 'CITEORYX_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CITEORYX_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
