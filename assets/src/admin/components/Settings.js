@@ -7,10 +7,10 @@ import {
 	CardHeader,
 	Button,
 	ToggleControl,
-	TextControl,
 	Notice,
 } from '@wordpress/components';
 import SiteProfileFields from './SiteProfileFields';
+import NotificationSettings from './NotificationSettings';
 import { getSettingsData } from '../settingsData';
 import { getApiErrorMessage } from '../apiError';
 
@@ -23,8 +23,9 @@ const Settings = ( { initialData, onSaved } ) => {
 	const [ notificationStatus, setNotificationStatus ] = useState(
 		initialData.notification_status
 	);
-	const [ testLoading, setTestLoading ] = useState( false );
-	const [ testResult, setTestResult ] = useState( null );
+	const [ criticalAlertStatus, setCriticalAlertStatus ] = useState(
+		initialData.critical_alert_status
+	);
 
 	const save = () => {
 		setError( null );
@@ -40,6 +41,7 @@ const Settings = ( { initialData, onSaved } ) => {
 				setSettings( data.settings );
 				setProfile( data.profile );
 				setNotificationStatus( data.notification_status );
+				setCriticalAlertStatus( data.critical_alert_status );
 				setSaved( true );
 				if ( onSaved ) {
 					onSaved( data );
@@ -56,33 +58,6 @@ const Settings = ( { initialData, onSaved } ) => {
 			.finally( () => setLoading( false ) );
 	};
 
-	const sendTest = () => {
-		setTestLoading( true );
-		setTestResult( null );
-		apiFetch( {
-			path: 'citeoryx/v1/notifications/test',
-			method: 'POST',
-			data: { email: settings.notification_email },
-		} )
-			.then( ( response ) => {
-				setNotificationStatus( response.data );
-				setTestResult( {
-					status: 'success',
-					message: response.data.message,
-				} );
-			} )
-			.catch( ( err ) =>
-				setTestResult( {
-					status: 'error',
-					message: getApiErrorMessage(
-						err,
-						__( '测试邮件发送失败。', 'citeoryx' )
-					),
-				} )
-			)
-			.finally( () => setTestLoading( false ) );
-	};
-
 	return (
 		<div className="citeoryx-settings">
 			{ error && (
@@ -95,12 +70,6 @@ const Settings = ( { initialData, onSaved } ) => {
 					{ __( '设置已保存。', 'citeoryx' ) }
 				</Notice>
 			) }
-			{ testResult && (
-				<Notice status={ testResult.status } isDismissible={ false }>
-					{ testResult.message }
-				</Notice>
-			) }
-
 			<Card>
 				<CardHeader>{ __( '站点画像', 'citeoryx' ) }</CardHeader>
 				<CardBody>
@@ -112,56 +81,14 @@ const Settings = ( { initialData, onSaved } ) => {
 				</CardBody>
 			</Card>
 
-			<Card>
-				<CardHeader>{ __( '邮件周报', 'citeoryx' ) }</CardHeader>
-				<CardBody>
-					<ToggleControl
-						label={ __( '启用每周邮件周报', 'citeoryx' ) }
-						checked={ settings.weekly_digest_enabled }
-						onChange={ ( value ) =>
-							setSettings( {
-								...settings,
-								weekly_digest_enabled: value,
-							} )
-						}
-						__nextHasNoMarginBottom
-					/>
-					<TextControl
-						label={ __( '收件邮箱', 'citeoryx' ) }
-						type="email"
-						value={ settings.notification_email }
-						onChange={ ( value ) =>
-							setSettings( {
-								...settings,
-								notification_email: value,
-							} )
-						}
-						__nextHasNoMarginBottom
-					/>
-					<Button
-						variant="secondary"
-						onClick={ sendTest }
-						disabled={
-							loading ||
-							testLoading ||
-							! settings.notification_email
-						}
-						isBusy={ testLoading }
-					>
-						{ testLoading
-							? __( '发送中…', 'citeoryx' )
-							: __( '发送测试邮件', 'citeoryx' ) }
-					</Button>
-					{ 'never' !== notificationStatus.status && (
-						<p className="citeoryx-settings__status">
-							{ notificationStatus.message }
-							{ notificationStatus.attempted_at
-								? ` ${ notificationStatus.attempted_at }`
-								: '' }
-						</p>
-					) }
-				</CardBody>
-			</Card>
+			<NotificationSettings
+				settings={ settings }
+				onChange={ setSettings }
+				loading={ loading }
+				weeklyStatus={ notificationStatus }
+				onWeeklyStatus={ setNotificationStatus }
+				criticalStatus={ criticalAlertStatus }
+			/>
 
 			<Card>
 				<CardHeader>{ __( '通用设置', 'citeoryx' ) }</CardHeader>
@@ -191,7 +118,7 @@ const Settings = ( { initialData, onSaved } ) => {
 			<Button
 				variant="primary"
 				onClick={ save }
-				disabled={ loading || testLoading }
+				disabled={ loading }
 				isBusy={ loading }
 			>
 				{ loading

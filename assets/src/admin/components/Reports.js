@@ -3,13 +3,13 @@ import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { getApiErrorMessage } from '../apiError';
 import {
-	Button,
 	Card,
 	CardBody,
 	CardHeader,
 	Notice,
 	Spinner,
 } from '@wordpress/components';
+import ReportActions from './ReportActions';
 import {
 	DistributionTable,
 	DimensionTable,
@@ -17,7 +17,7 @@ import {
 	RecentScansTable,
 	TopIssuesTable,
 } from './ReportTables';
-import { exportReportCsv, formatReportScore } from '../reportCsv';
+import { formatReportScore } from '../reportCsv';
 
 const Reports = () => {
 	const canExport = Boolean( window.citeoryxAdmin?.user?.canExport );
@@ -56,22 +56,12 @@ const Reports = () => {
 					{ error }
 				</Notice>
 			) }
-			<div className="citeoryx-dashboard__actions">
-				<Button onClick={ fetchReport } disabled={ loading }>
-					{ loading
-						? __( '刷新中…', 'citeoryx' )
-						: __( '刷新报告', 'citeoryx' ) }
-				</Button>
-				{ canExport && (
-					<Button
-						variant="secondary"
-						onClick={ () => exportReportCsv( data ) }
-						disabled={ ! data }
-					>
-						{ __( '导出 CSV', 'citeoryx' ) }
-					</Button>
-				) }
-			</div>
+			<ReportActions
+				data={ data }
+				loading={ loading }
+				onRefresh={ fetchReport }
+				canExport={ canExport }
+			/>
 			{ data && (
 				<>
 					<Card>

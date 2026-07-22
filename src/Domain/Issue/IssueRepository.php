@@ -272,4 +272,45 @@ class IssueRepository {
 			$rows ?: array()
 		);
 	}
+
+	/**
+	 * Find a bounded set of unresolved high-severity issues for alerts.
+	 *
+	 * @param int $limit Maximum rows.
+	 * @return array<int, array{id:int,severity:string,title:string,priority_score:float|null,canonical_url:string}>
+	 */
+	public function list_alertable( int $limit = 100 ): array {
+		global $wpdb;
+
+		$limit         = min( 100, max( 1, $limit ) );
+		$content_table = $wpdb->prefix . CITEORYX_TABLE_CONTENT_ITEMS;
+		$rows          = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT issue.id, issue.severity, issue.title, issue.priority_score,
+					COALESCE(content.canonical_url, '') AS canonical_url
+				FROM %i AS issue
+				LEFT JOIN %i AS content ON content.id = issue.content_id
+				WHERE issue.status IN ('open', 'in_progress')
+					AND issue.severity IN ('critical', 'high')
+				ORDER BY CASE issue.severity WHEN 'critical' THEN 0 ELSE 1 END,
+					issue.priority_score DESC, issue.id DESC
+				LIMIT %d",
+				$this->table(),
+				$content_table,
+				$limit
+			),
+			ARRAY_A
+		);
+
+		return array_map(
+			static fn ( array $row ) => array(
+				'id'             => (int) $row['id'],
+				'severity'       => (string) $row['severity'],
+				'title'          => (string) $row['title'],
+				'priority_score' => null !== $row['priority_score'] ? (float) $row['priority_score'] : null,
+				'canonical_url'  => (string) $row['canonical_url'],
+			),
+			$rows ?: array()
+		);
+	}
 }

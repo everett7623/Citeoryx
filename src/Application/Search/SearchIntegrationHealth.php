@@ -1,6 +1,6 @@
 <?php
 /**
- * Search integration health state.
+ * Search integration health store.
  *
  * @package Citeoryx\Application\Search
  */
@@ -8,76 +8,52 @@
 namespace Citeoryx\Application\Search;
 
 /**
- * Persists connection and import health for external search providers.
+ * Persists provider request health and exposes alert-worthy failures.
  */
 class SearchIntegrationHealth {
 
-	const OPTION = 'citeoryx_search_integration_health';
+	const OPTION          = 'citeoryx_search_integration_health';
+	const ALERT_THRESHOLD = 2;
 
 	/**
-	 * Supported provider keys.
-	 *
-	 * @var array<int, string>
-	 */
-	private const PROVIDERS = array(
-		'google_search_console',
-		'bing_webmaster_tools',
-	);
-
-	/**
-	 * Return the normalized health state for one provider.
+	 * Return one provider state.
 	 *
 	 * @param string $provider Provider key.
 	 * @return array<string, mixed>
 	 */
 	public function get( string $provider ): array {
-		$health = $this->all();
-		return $health[ $provider ] ?? $this->default_state();
+		$states = $this->all();
+		return $states[ sanitize_key( $provider ) ] ?? $this->default_state();
 	}
 
 	/**
-	 * Return all provider health states.
+	 * Return all persisted provider states.
 	 *
 	 * @return array<string, array<string, mixed>>
 	 */
 	public function all(): array {
-		$stored = get_option( self::OPTION, array() );
-		$stored = is_array( $stored ) ? $stored : array();
-		$health = array();
-
-		foreach ( self::PROVIDERS as $provider ) {
-			$health[ $provider ] = $this->normalize( $stored[ $provider ] ?? array() );
-		}
-
-		return $health;
+		$states = get_option( self::OPTION, array() );
+		return is_array( $states ) ? $states : array();
 	}
 
 	/**
 	 * Record a successful provider request.
 	 *
-	 * @param string      $provider Provider key.
-	 * @param string|null $message Optional status message.
+	 * @param string $provider Provider key.
+	 * @param string $message Optional status message.
 	 * @return array<string, mixed>
 	 */
-	public function record_success( string $provider, ?string $message = null ): array {
-		if ( ! in_array( $provider, self::PROVIDERS, true ) ) {
-			return $this->default_state();
-		}
-
-		$now   = current_time( 'mysql' );
-		$state = $this->get( $provider );
-		$state = array_merge(
-			$state,
-			array(
-				'status'               => 'healthy',
-				'message'              => $message ? sanitize_text_field( $message ) : null,
-				'checked_at'           => $now,
-				'consecutive_failures' => 0,
-				'last_success_at'      => $now,
-			)
+	public function record_success( string $provider, string $message = 'Connection is healthy.' ): array {
+		$now   = gmdate( 'c' );
+		$state = array(
+			'status'               => 'healthy',
+			'message'              => sanitize_text_field( $message ),
+			'checked_at'           => $now,
+			'consecutive_failures' => 0,
+			'last_success_at'      => $now,
 		);
-		$this->save( $provider, $state );
 
+		$this->save( $provider, $state );
 		return $state;
 	}
 
@@ -85,72 +61,73 @@ class SearchIntegrationHealth {
 	 * Record a failed provider request.
 	 *
 	 * @param string $provider Provider key.
-	 * @param string $message Error message.
+	 * @param string $message Safe error summary.
 	 * @return array<string, mixed>
 	 */
 	public function record_failure( string $provider, string $message ): array {
-		if ( ! in_array( $provider, self::PROVIDERS, true ) ) {
-			return $this->default_state();
-		}
-
-		$state = $this->get( $provider );
-		$state = array_merge(
-			$state,
-			array(
-				'status'               => 'error',
-				'message'              => $this->truncate( $message ),
-				'checked_at'           => current_time( 'mysql' ),
-				'consecutive_failures' => (int) $state['consecutive_failures'] + 1,
-			)
+		$previous = $this->get( $provider );
+		$state    = array(
+			'status'               => 'error',
+			'message'              => sanitize_text_field( $message ),
+			'checked_at'           => gmdate( 'c' ),
+			'consecutive_failures' => (int) $previous['consecutive_failures'] + 1,
+			'last_success_at'      => $previous['last_success_at'],
 		);
-		$this->save( $provider, $state );
 
+		$this->save( $provider, $state );
 		return $state;
 	}
 
 	/**
-	 * Clear stale state after a provider is disconnected.
+	 * Remove stale health when an integration is disconnected or reconfigured.
 	 *
 	 * @param string $provider Provider key.
 	 * @return void
 	 */
 	public function clear( string $provider ): void {
-		if ( ! in_array( $provider, self::PROVIDERS, true ) ) {
-			return;
-		}
-
-		$this->save( $provider, $this->default_state() );
+		$provider = sanitize_key( $provider );
+		$states   = $this->all();
+		unset( $states[ $provider ] );
+		update_option( self::OPTION, $states, false );
 	}
 
 	/**
-	 * Return failures that are ready for an admin notice.
-	 *
-	 * A single transient network error is kept in the integration UI but does
-	 * not create a persistent dashboard notice until it repeats.
+	 * Return provider states that crossed the consecutive failure threshold.
 	 *
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function get_alerts(): array {
+		$labels = array(
+			'google_search_console' => 'Google Search Console',
+			'bing_webmaster_tools'  => 'Bing Webmaster Tools',
+		);
 		$alerts = array();
 		foreach ( $this->all() as $provider => $state ) {
-			if ( 'error' !== $state['status'] || (int) $state['consecutive_failures'] < 2 ) {
+			if ( (int) ( $state['consecutive_failures'] ?? 0 ) < self::ALERT_THRESHOLD ) {
 				continue;
 			}
-
-			$alerts[] = array_merge(
-				$state,
-				array(
-					'provider' => $provider,
-					'label'    => $this->label( $provider ),
-				)
-			);
+			$state['provider'] = $provider;
+			$state['label']    = $labels[ $provider ] ?? $provider;
+			$alerts[]          = $state;
 		}
-
 		return $alerts;
 	}
 
 	/**
-	 * Build the default state.
+	 * Persist one provider state.
+	 *
+	 * @param string               $provider Provider key.
+	 * @param array<string, mixed> $state State.
+	 * @return void
+	 */
+	private function save( string $provider, array $state ): void {
+		$states                              = $this->all();
+		$states[ sanitize_key( $provider ) ] = $state;
+		update_option( self::OPTION, $states, false );
+	}
+
+	/**
+	 * Return a stable unknown-state contract.
 	 *
 	 * @return array<string, mixed>
 	 */
@@ -162,68 +139,5 @@ class SearchIntegrationHealth {
 			'consecutive_failures' => 0,
 			'last_success_at'      => null,
 		);
-	}
-
-	/**
-	 * Normalize persisted state from older or incomplete options.
-	 *
-	 * @param mixed $state Stored state.
-	 * @return array<string, mixed>
-	 */
-	private function normalize( $state ): array {
-		$state   = is_array( $state ) ? $state : array();
-		$default = $this->default_state();
-		$state   = array_merge( $default, $state );
-		if ( ! in_array( $state['status'], array( 'unknown', 'healthy', 'error' ), true ) ) {
-			$state['status'] = 'unknown';
-		}
-		$state['consecutive_failures'] = max( 0, (int) $state['consecutive_failures'] );
-		$state['message']              = $state['message'] ? $this->truncate( (string) $state['message'] ) : null;
-		$state['checked_at']           = $state['checked_at'] ? sanitize_text_field( (string) $state['checked_at'] ) : null;
-		$state['last_success_at']      = $state['last_success_at']
-			? sanitize_text_field( (string) $state['last_success_at'] )
-			: null;
-		return $state;
-	}
-
-	/**
-	 * Save one provider state in the shared option.
-	 *
-	 * @param string               $provider Provider key.
-	 * @param array<string, mixed> $state State.
-	 * @return void
-	 */
-	private function save( string $provider, array $state ): void {
-		$all              = get_option( self::OPTION, array() );
-		$all              = is_array( $all ) ? $all : array();
-		$all[ $provider ] = $this->normalize( $state );
-		update_option( self::OPTION, $all, false );
-	}
-
-	/**
-	 * Limit remote error text before storing it.
-	 *
-	 * @param string $message Error text.
-	 * @return string
-	 */
-	private function truncate( string $message ): string {
-		$message = sanitize_text_field( $message );
-		return function_exists( 'mb_substr' )
-			? mb_substr( $message, 0, 240 )
-			: substr( $message, 0, 240 );
-	}
-
-	/**
-	 * Return a human-readable provider label.
-	 *
-	 * @param string $provider Provider key.
-	 * @return string
-	 */
-	private function label( string $provider ): string {
-		$labels = array(
-			'google_search_console' => 'Google Search Console',
-			'bing_webmaster_tools'  => 'Bing Webmaster Tools',
-		);
-		return $labels[ $provider ] ?? $provider;
 	}
 }

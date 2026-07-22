@@ -45,4 +45,29 @@ class IssueRepositoryTest extends WP_UnitTestCase {
 		$this->assertSame( 1, $result['total'] );
 		$this->assertSame( 'Refreshed title', $result['items'][0]->title );
 	}
+
+	public function test_list_alertable_returns_only_unresolved_serious_issues(): void {
+		$content_repo        = new ContentRepository();
+		$issue_repo          = new IssueRepository();
+		$item                = new ContentItem();
+		$item->canonical_url = home_url( '/alert-test' );
+		$item->url_hash      = md5( $item->canonical_url );
+		$item->id            = $content_repo->save( $item );
+
+		foreach ( array( 'high', 'low' ) as $severity ) {
+			$issue             = new Issue();
+			$issue->content_id = $item->id;
+			$issue->issue_code = 'CX_ALERT_' . strtoupper( $severity );
+			$issue->category   = 'content';
+			$issue->severity   = $severity;
+			$issue->title      = ucfirst( $severity ) . ' issue';
+			$issue_repo->save( $issue );
+		}
+
+		$items = $issue_repo->list_alertable();
+
+		$this->assertCount( 1, $items );
+		$this->assertSame( 'high', $items[0]['severity'] );
+		$this->assertSame( $item->canonical_url, $items[0]['canonical_url'] );
+	}
 }

@@ -10,6 +10,7 @@ import Onboarding from './components/Onboarding';
 import Optimizer from './components/Optimizer';
 import Integrations from './components/Integrations';
 import Reports from './components/Reports';
+import Planning from './components/Planning';
 import { getSettingsData } from './settingsData';
 import { getApiErrorMessage } from './apiError';
 
@@ -60,7 +61,10 @@ const App = () => {
 			? [ { name: 'integrations', title: __( '集成', 'citeoryx' ) } ]
 			: [] ),
 		...( adminUser.canViewDashboard
-			? [ { name: 'reports', title: __( '报告', 'citeoryx' ) } ]
+			? [
+					{ name: 'planning', title: __( '内容规划', 'citeoryx' ) },
+					{ name: 'reports', title: __( '报告', 'citeoryx' ) },
+			  ]
 			: [] ),
 		...( adminUser.canSettings
 			? [ { name: 'settings', title: __( '设置', 'citeoryx' ) } ]
@@ -85,6 +89,8 @@ const App = () => {
 				return <Integrations />;
 			case 'reports':
 				return <Reports />;
+			case 'planning':
+				return <Planning />;
 			case 'settings':
 				return (
 					<Settings

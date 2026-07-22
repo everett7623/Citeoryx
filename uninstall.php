@@ -63,10 +63,13 @@ function citeoryx_delete_options(): void {
 		'citeoryx_last_incremental_scan',
 		'citeoryx_last_weekly_digest_period',
 		'citeoryx_notification_status',
+		'citeoryx_critical_alert_status',
+		'citeoryx_critical_alert_fingerprint',
 		'citeoryx_search_integration_health',
 		'citeoryx_capabilities_version',
 		'citeoryx_key_gsc_tokens',
 		'citeoryx_key_gsc_client_secret',
+		'citeoryx_key_bing_webmaster_api_key',
 		'citeoryx_key_openai_api_key',
 	);
 

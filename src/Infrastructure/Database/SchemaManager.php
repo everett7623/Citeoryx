@@ -51,7 +51,8 @@ class SchemaManager {
 			KEY idx_object (object_type, object_id),
 			KEY idx_status (status),
 			KEY idx_health (health_score),
-			KEY idx_modified (modified_at)
+			KEY idx_modified (modified_at),
+			KEY idx_review_reference (last_reviewed_at, modified_at, published_at, created_at)
 		) {$charset_collate};";
 
 		$sql_metrics_daily = "CREATE TABLE IF NOT EXISTS {$prefix}cx_metrics_daily (
@@ -94,6 +95,7 @@ class SchemaManager {
 			KEY idx_query_hash (query_hash),
 			KEY idx_content_period (content_id, period_start, period_end),
 			KEY idx_dimension_period (country_code, device, period_end),
+			KEY idx_period_end (period_end),
 			KEY idx_topic (topic_id)
 		) {$charset_collate};";
 
@@ -120,7 +122,8 @@ class SchemaManager {
 			KEY idx_content_status (content_id, status),
 			KEY idx_issue_code (issue_code),
 			KEY idx_priority (priority_score),
-			KEY idx_category (category)
+			KEY idx_category (category),
+			KEY idx_alert (status, severity, priority_score)
 		) {$charset_collate};";
 
 		$sql_links = "CREATE TABLE IF NOT EXISTS {$prefix}cx_links (

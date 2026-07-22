@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'CITEORYX_DB_VERSION' ) ) {
-	define( 'CITEORYX_DB_VERSION', '2026072201' );
+	define( 'CITEORYX_DB_VERSION', '2026072204' );
 }
 
 if ( ! defined( 'CITEORYX_REST_NAMESPACE' ) ) {

@@ -39,6 +39,7 @@ class SettingsControllerTest extends WP_UnitTestCase {
 		delete_option( 'citeoryx_site_profile' );
 		delete_option( 'citeoryx_remove_data_on_uninstall' );
 		delete_option( 'citeoryx_notification_status' );
+		delete_option( 'citeoryx_critical_alert_status' );
 		parent::tearDown();
 	}
 
@@ -57,7 +58,9 @@ class SettingsControllerTest extends WP_UnitTestCase {
 		$this->assertContains( 'page', $types );
 		$this->assertNotContains( 'attachment', $types );
 		$this->assertFalse( $data['settings']['weekly_digest_enabled'] );
+		$this->assertFalse( $data['settings']['critical_alerts_enabled'] );
 		$this->assertSame( 'never', $data['notification_status']['status'] );
+		$this->assertSame( 'never', $data['critical_alert_status']['status'] );
 	}
 
 	/**
@@ -79,6 +82,7 @@ class SettingsControllerTest extends WP_UnitTestCase {
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertFalse( $data['profile_complete'] );
 		$this->assertSame( 'never', $data['notification_status']['status'] );
+		$this->assertSame( 'never', $data['critical_alert_status']['status'] );
 	}
 
 	/**
@@ -145,6 +149,18 @@ class SettingsControllerTest extends WP_UnitTestCase {
 					'weekly_digest_enabled' => true,
 					'notification_email'    => 'not-an-email',
 				)
+			)
+		);
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertFalse( get_option( 'citeoryx_site_profile', false ) );
+	}
+
+	public function test_update_settings_rejects_string_critical_alert_switch(): void {
+		$response = $this->controller->update_settings(
+			$this->request(
+				$this->valid_profile(),
+				array( 'critical_alerts_enabled' => 'true' )
 			)
 		);
 

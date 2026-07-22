@@ -17,17 +17,23 @@ use Citeoryx\Application\Analyze\AiReadinessScorer;
 use Citeoryx\Application\Analyze\ContentStatusClassifier;
 use Citeoryx\Application\Scan\LinkChecker;
 use Citeoryx\Application\Optimize\Optimizer;
+use Citeoryx\Application\Optimize\RevisionDraftService;
 use Citeoryx\Domain\Content\ContentRepository;
 use Citeoryx\Domain\Issue\IssueRepository;
 use Citeoryx\Domain\Link\LinkRepository;
 use Citeoryx\Domain\Metrics\MetricsRepository;
+use Citeoryx\Domain\Planning\OpportunityRepository;
+use Citeoryx\Domain\Planning\CalendarRepository;
 use Citeoryx\Domain\Scan\ScanRunRepository;
 use Citeoryx\Infrastructure\Cache\Transients;
 use Citeoryx\Infrastructure\Http\HttpClient;
 use Citeoryx\Infrastructure\Encryption\KeyStore;
 use Citeoryx\Application\Notifications\WeeklyDigest;
+use Citeoryx\Application\Notifications\CriticalIssueNotifier;
 use Citeoryx\Application\Search\SearchPerformanceImporter;
 use Citeoryx\Application\Search\SearchIntegrationHealth;
+use Citeoryx\Application\Planning\TopicOpportunityFinder;
+use Citeoryx\Application\Planning\PlanningCalendar;
 use Citeoryx\Integrations\SearchConsole\BingWebmasterTools;
 use Citeoryx\Integrations\SearchConsole\GoogleOAuth;
 use Citeoryx\Integrations\SearchConsole\GoogleSearchConsole;
@@ -124,6 +130,8 @@ class Container {
 					$this->get( HealthScorer::class ),
 					$this->get( AiReadinessScorer::class )
 				);
+			case RevisionDraftService::class:
+				return new RevisionDraftService( $this->get( ContentRepository::class ) );
 			case ContentRepository::class:
 				return new ContentRepository();
 			case IssueRepository::class:
@@ -132,6 +140,17 @@ class Container {
 				return new LinkRepository();
 			case MetricsRepository::class:
 				return new MetricsRepository();
+			case OpportunityRepository::class:
+				return new OpportunityRepository();
+			case CalendarRepository::class:
+				return new CalendarRepository();
+			case TopicOpportunityFinder::class:
+				return new TopicOpportunityFinder( $this->get( OpportunityRepository::class ) );
+			case PlanningCalendar::class:
+				return new PlanningCalendar(
+					$this->get( CalendarRepository::class ),
+					$this->get( ContentRepository::class )
+				);
 			case GoogleOAuth::class:
 				return new GoogleOAuth();
 			case GoogleSearchConsole::class:
@@ -161,6 +180,8 @@ class Container {
 					$this->get( ContentRepository::class ),
 					$this->get( IssueRepository::class )
 				);
+			case CriticalIssueNotifier::class:
+				return new CriticalIssueNotifier( $this->get( IssueRepository::class ) );
 			case LinkChecker::class:
 				return new LinkChecker(
 					$this->get( LinkRepository::class ),

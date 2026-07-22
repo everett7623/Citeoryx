@@ -159,13 +159,14 @@ class SearchConsoleAdapterTest extends WP_UnitTestCase {
 	 * @return void
 	 */
 	public function test_bing_retries_network_and_server_failures(): void {
+
 		BingWebmasterTools::save_api_key( 'test-api-key' );
 		$calls     = 0;
 		$delays    = array();
 		$responses = array(
 			new \WP_Error( 'http_request_failed', 'Temporary network error.' ),
 			$this->http_response( 503, '{"error":"unavailable"}' ),
-			$this->http_response( 200, '{"d":{"results":[]}}' ),
+			$this->http_response( 200, '{"d":[]}' ),
 		);
 		add_filter(
 			'pre_http_request',
@@ -190,16 +191,50 @@ class SearchConsoleAdapterTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Bing page query statistics must follow the official endpoint and response shape.
+	 *
+	 * @return void
+	 */
+	public function test_bing_maps_official_page_query_response(): void {
+
+		BingWebmasterTools::save_api_key( 'test-api-key' );
+		$request_url = '';
+		add_filter(
+			'pre_http_request',
+			function ( $preempt, $args, $url ) use ( &$request_url ): array {
+
+				$request_url = $url;
+				return $this->http_response(
+					200,
+					'{"d":[{"Query":"example query","Clicks":4,"Impressions":40,"AvgImpressionPosition":3.5,"Date":"/Date(1784505600000)/"}]}'
+				);
+			},
+			10,
+			3
+		);
+		$adapter = new BingWebmasterTools();
+		$rows    = $adapter->get_queries_for_url( home_url( '/example' ), '2026-07-01', '2026-07-31' );
+
+		$this->assertStringContainsString( '/GetPageQueryStats?', $request_url );
+		$this->assertStringContainsString( 'page=', $request_url );
+		$this->assertSame( 'example query', $rows[0]['query'] );
+		$this->assertSame( 10.0, $rows[0]['ctr'] );
+		$this->assertSame( 3.5, $rows[0]['position'] );
+		$this->assertSame( '2026-07-20', $rows[0]['metric_date'] );
+	}
+	/**
 	 * Build an OAuth test double with a usable token.
 	 *
 	 * @return GoogleOAuth
 	 */
 	private function connected_google_oauth(): GoogleOAuth {
 		return new class() extends GoogleOAuth {
+			/** @return bool */
 			public function is_connected(): bool {
 				return true;
 			}
 
+			/** @return string|null */
 			public function get_access_token(): ?string {
 				return 'test-access-token';
 			}

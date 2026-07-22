@@ -16,6 +16,7 @@ use Citeoryx\Infrastructure\Database\SchemaManager;
 use Citeoryx\Support\Privacy;
 use Citeoryx\Integrations\SearchConsole\GoogleOAuth;
 use Citeoryx\Application\Notifications\WeeklyDigest;
+use Citeoryx\Application\Notifications\CriticalIssueNotifier;
 use Citeoryx\Application\Search\SearchIntegrationHealth;
 
 /**
@@ -148,6 +149,9 @@ class Plugin {
 		$digest = $this->container->get( WeeklyDigest::class );
 		add_action( 'init', array( $digest, 'ensure_scheduled' ) );
 		add_action( WeeklyDigest::HOOK, array( $digest, 'send_scheduled' ) );
+
+		$critical_notifier = $this->container->get( CriticalIssueNotifier::class );
+		add_action( 'citeoryx_scan_completed', array( $critical_notifier, 'send_after_scan' ) );
 	}
 
 	/**

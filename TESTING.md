@@ -17,6 +17,7 @@
 - Author / Contributor 的作者级内容、问题与优化建议访问边界。
 - 周报调度、周期幂等和邮件请求契约。
 - Settings 首次加载不受可选通知状态异常影响，管理端不会直接显示 HTML 错误正文。
+- Revision 创建不修改父内容，并覆盖并发冲突、重复提交幂等、HTML 清洗和对象级权限。
 
 ### 集成测试
 
@@ -33,9 +34,14 @@
 
 ### E2E
 
-覆盖：
+当前 Playwright 自动化覆盖：
 
-- 安装向导；
+- 安装向导完成站点画像；
+- 内容规划与报告页签加载；
+- PDF 报告生成与下载文件校验。
+
+后续旅程规划覆盖：
+
 - 连接 GSC；
 - 启动扫描；
 - 查看问题；
@@ -57,7 +63,19 @@ npm run test
 composer phpcs
 npm run lint:js
 npm run lint:css
+
+# 首次运行需安装 Chromium，并启动 Docker
+npx playwright install chromium
+npm run build
+npm run env:start
+npm run test:e2e
+npm run env:stop
 ```
+
+E2E 使用 `.wp-env.json` 启动 WordPress 6.6 / PHP 8.0，默认地址为
+`http://localhost:8889`。测试会激活 Citeoryx、重置站点画像，并使用 wp-env
+默认管理员完成真实后台旅程。失败时可在 `playwright-report/` 和
+`test-results/` 查看 HTML 报告、截图、视频和 trace。
 
 首次运行 PHP 测试前，需要可用的 MySQL 和 Bash 环境：
 
@@ -66,7 +84,7 @@ composer test-install
 composer test
 ```
 
-GitHub Actions 会对 Node.js 前端检查以及 PHP 8.0–8.4 / WordPress 6.6 和最新版本组合自动执行质量门禁。WPCS 使用项目级 `phpcs.xml.dist` 执行 `WordPress-Extra` 规则，并作为阻断条件运行；规则集仅排除与 Composer PSR-4 架构及既有领域代码风格冲突的文件命名、保留字参数名和短三元表达式规则。
+GitHub Actions 会对 Node.js 前端检查、Chromium E2E，以及 PHP 8.0–8.4 / WordPress 6.6 和最新版本组合自动执行质量门禁。WPCS 使用项目级 `phpcs.xml.dist` 执行 `WordPress-Extra` 规则，并作为阻断条件运行；规则集仅排除与 Composer PSR-4 架构及既有领域代码风格冲突的文件命名、保留字参数名和短三元表达式规则。
 
 ## PHP 测试配置
 

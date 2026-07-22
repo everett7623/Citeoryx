@@ -63,6 +63,7 @@ class Assets {
 				'nonce'     => wp_create_nonce( 'wp_rest' ),
 				'assetsUrl' => CITEORYX_PLUGIN_URL . 'assets/',
 				'pluginUrl' => CITEORYX_PLUGIN_URL,
+				'siteName'  => wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
 				'user'      => array(
 					'id'                    => $current_user->ID,
 					'name'                  => $current_user->display_name,
@@ -73,6 +74,7 @@ class Assets {
 					'canManageIntegrations' => current_user_can( Capabilities::MANAGE_INTEGRATIONS ),
 					'canSettings'           => current_user_can( Capabilities::MANAGE_SETTINGS ),
 					'canExport'             => current_user_can( Capabilities::EXPORT_DATA ),
+					'canApplyChanges'       => current_user_can( Capabilities::APPLY_CHANGES ),
 				),
 			)
 		);

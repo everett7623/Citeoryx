@@ -20,12 +20,12 @@ class BingController extends BaseController {
 	/**
 	 * Register routes.
 	 *
-	 * @param string $namespace REST namespace.
+	 * @param string $rest_namespace REST namespace.
 	 * @return void
 	 */
-	public function register( string $namespace ): void {
+	public function register( string $rest_namespace ): void {
 		register_rest_route(
-			$namespace,
+			$rest_namespace,
 			'/integrations/bing',
 			array(
 				array(
@@ -37,7 +37,7 @@ class BingController extends BaseController {
 		);
 
 		register_rest_route(
-			$namespace,
+			$rest_namespace,
 			'/integrations/bing/settings',
 			array(
 				array(
@@ -55,7 +55,7 @@ class BingController extends BaseController {
 		);
 
 		register_rest_route(
-			$namespace,
+			$rest_namespace,
 			'/integrations/bing/disconnect',
 			array(
 				array(
@@ -67,7 +67,7 @@ class BingController extends BaseController {
 		);
 
 		register_rest_route(
-			$namespace,
+			$rest_namespace,
 			'/integrations/bing/validate',
 			array(
 				array(
@@ -79,7 +79,7 @@ class BingController extends BaseController {
 		);
 
 		register_rest_route(
-			$namespace,
+			$rest_namespace,
 			'/integrations/bing/metrics',
 			array(
 				array(
@@ -101,7 +101,7 @@ class BingController extends BaseController {
 		);
 
 		register_rest_route(
-			$namespace,
+			$rest_namespace,
 			'/integrations/bing/queries',
 			array(
 				array(
@@ -128,7 +128,7 @@ class BingController extends BaseController {
 		);
 
 		register_rest_route(
-			$namespace,
+			$rest_namespace,
 			'/integrations/bing/sites',
 			array(
 				array(
@@ -171,13 +171,19 @@ class BingController extends BaseController {
 	 * @return \WP_REST_Response
 	 */
 	public function save_settings( WP_REST_Request $request ): \WP_REST_Response {
+
 		$api_key = sanitize_text_field( (string) $request->get_param( 'api_key' ) );
-		BingWebmasterTools::save_api_key( $api_key );
+		if ( '' === $api_key ) {
+			return $this->error( __( 'Bing Webmaster Tools API Key is required.', 'citeoryx' ), 400 );
+		}
+		if ( ! BingWebmasterTools::save_api_key( $api_key ) ) {
+			return $this->error( __( 'Unable to store the Bing Webmaster Tools API Key securely.', 'citeoryx' ), 500 );
+		}
 		$this->container->get( SearchIntegrationHealth::class )->clear( 'bing_webmaster_tools' );
 		return $this->success(
 			array(
 				'saved'     => true,
-				'connected' => ! empty( $api_key ),
+				'connected' => true,
 			)
 		);
 	}
@@ -228,8 +234,8 @@ class BingController extends BaseController {
 			return $this->error( __( 'Bing Webmaster Tools is not connected.', 'citeoryx' ), 400 );
 		}
 
-		$end   = $request->get_param( 'end_date' ) ?: gmdate( 'Y-m-d', strtotime( '-3 days' ) );
-		$start = $request->get_param( 'start_date' ) ?: gmdate( 'Y-m-d', strtotime( '-35 days' ) );
+		$end   = $this->date_param( $request, 'end_date', '-3 days' );
+		$start = $this->date_param( $request, 'start_date', '-35 days' );
 
 		$rows = $bing->get_metrics( $start, $end );
 		return $this->success(
@@ -254,8 +260,8 @@ class BingController extends BaseController {
 		}
 
 		$url   = (string) $request->get_param( 'url' );
-		$end   = $request->get_param( 'end_date' ) ?: gmdate( 'Y-m-d', strtotime( '-3 days' ) );
-		$start = $request->get_param( 'start_date' ) ?: gmdate( 'Y-m-d', strtotime( '-35 days' ) );
+		$end   = $this->date_param( $request, 'end_date', '-3 days' );
+		$start = $this->date_param( $request, 'start_date', '-35 days' );
 
 		$queries = $bing->get_queries_for_url( $url, $start, $end );
 		return $this->success(
@@ -278,5 +284,18 @@ class BingController extends BaseController {
 		}
 
 		return $this->success( array( 'sites' => $bing->list_sites() ) );
+	}
+
+	/**
+	 * Resolve an optional date parameter with a relative UTC fallback.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @param string          $name Parameter name.
+	 * @param string          $fallback Relative date fallback.
+	 * @return string
+	 */
+	private function date_param( WP_REST_Request $request, string $name, string $fallback ): string {
+		$value = $request->get_param( $name );
+		return is_string( $value ) && '' !== $value ? $value : gmdate( 'Y-m-d', strtotime( $fallback ) );
 	}
 }

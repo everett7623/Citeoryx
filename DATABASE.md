@@ -43,7 +43,8 @@ CREATE TABLE {prefix}cx_content_items (
   KEY idx_object (object_type, object_id),
   KEY idx_status (status),
   KEY idx_health (health_score),
-  KEY idx_modified (modified_at)
+  KEY idx_modified (modified_at),
+  KEY idx_review_reference (last_reviewed_at, modified_at, published_at, created_at)
 );
 ```
 
@@ -96,7 +97,8 @@ CREATE TABLE {prefix}cx_issues (
   KEY idx_content_status (content_id, status),
   KEY idx_issue_code (issue_code),
   KEY idx_priority (priority_score),
-  KEY idx_category (category)
+  KEY idx_category (category),
+  KEY idx_alert (status, severity, priority_score)
 );
 ```
 

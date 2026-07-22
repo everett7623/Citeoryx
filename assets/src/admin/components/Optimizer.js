@@ -2,6 +2,7 @@ import { useState, useEffect } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { getApiErrorMessage } from '../apiError';
+import OptimizerRevisionPanel from './OptimizerRevisionPanel';
 import {
 	Card,
 	CardBody,
@@ -13,6 +14,9 @@ import {
 } from '@wordpress/components';
 
 const Optimizer = () => {
+	const canApplyChanges = Boolean(
+		window.citeoryxAdmin?.user?.canApplyChanges
+	);
 	const [ contentId, setContentId ] = useState( '' );
 	const [ data, setData ] = useState( null );
 	const [ loading, setLoading ] = useState( false );
@@ -179,6 +183,21 @@ const Optimizer = () => {
 							) }
 						</CardBody>
 					</Card>
+
+					{ canApplyChanges && data.editor?.available && (
+						<OptimizerRevisionPanel
+							key={ data.content.id }
+							contentId={ data.content.id }
+							editor={ data.editor }
+						/>
+					) }
+					{ canApplyChanges &&
+						data.editor &&
+						! data.editor.available && (
+							<Notice status="warning" isDismissible={ false }>
+								{ data.editor.message }
+							</Notice>
+						) }
 				</>
 			) }
 		</div>

@@ -23,6 +23,7 @@
 - `GET /reports/summary` 内容评分、问题分布与最近扫描汇总
 - `GET /settings` / `POST /settings` 站点画像与设置
 - `GET /optimizer/{id}` 内容优化建议
+- `POST /recommendations/apply` 创建安全 WordPress Revision，包含完整字段校验、并发快照与重复提交幂等
 - `POST /notifications/test` 测试邮件周报
 - 扫描接口使用持久化后台任务，按批次返回进度并防止并发全量扫描
 - 队列调度失败会记录为失败任务，扫描器按主机归类 URL 并排除非 HTTP 链接
@@ -36,10 +37,11 @@
 - CSV 导出（内容资产、问题列表）
 - 激活后自动跳转到插件页面
 - Dashboard 对扫描任务进行单一轮询，显示进度与失败原因
-- 报告页展示内容状态、平均健康分/AI 准备度、问题分布、优先问题与最近扫描，并可导出防公式注入的 CSV
+- 报告页展示内容状态、平均健康分/AI 准备度、问题分布、优先问题与最近扫描，并可导出防公式注入的 CSV 和自动分页 A4 PDF
 - 后台子菜单只保留已实现页面，所有入口均可正确渲染 React 应用
-- 设置页支持周报开关、收件邮箱、测试发送和最近发送状态
+- 设置页支持周报与严重问题通知开关、收件邮箱、测试发送和最近发送状态
 - 首次设置加载会隔离可选通知状态异常，后台 API 错误统一过滤 HTML 正文
+- 优化工作台支持编辑标题、摘要和正文，提供字段级差异预览，并在不修改父内容的前提下创建 Revision 供人工审核
 
 ### 内容扫描与分析
 - 全量/增量扫描 (`ContentScanner.php`)
@@ -69,10 +71,10 @@
 - Bing Webmaster Tools：API Key 认证、站点列表、查询指标与 URL 查询词读取
 - DeepSeek：通过 Chat Completions API 生成内容优化建议与 AI 可发现性分析
 - 所有搜索控制台与 AI 密钥通过 `KeyStore` 加密存储
-- 已实现 Google Search Console / Bing 每日数据导入：按内容 URL 和最近确认日期写入本地 `cx_metrics_daily` 快照，使用 ID 游标分批续接
+- 已实现 Google Search Console / Bing 定时数据导入：Google 写入三天延迟的日快照，Bing 按 API 返回的统计日期幂等写入，使用 ID 游标分批续接
 - Google / Bing 支持显式连接验证、健康状态记录与连续导入失败告警；合法空数据不会被误判为连接失败
 - Google / Bing 对网络错误、429 和 5xx 最多尝试 3 次，支持有上限的 `Retry-After` 与指数退避；确定性 4xx 不重试
-- 搜索导入按日保存页面 × 查询快照；Google 同时记录国家和设备维度，报告页与 CSV 提供 28 天趋势及维度汇总
+- 搜索导入按 Provider 真实统计日期保存页面 × 查询快照；Google 同时记录国家和设备维度，报告页与 CSV 提供 28 天趋势及维度汇总
 - 站点报告及 CSV 已显示本地 28 天搜索点击与展现聚合
 
 ### CLI
@@ -128,9 +130,11 @@
 | `src/Integrations/AiProviders/AiProviderFactory.php` | 增加 DeepSeek 分支 |
 | `src/Rest/Controllers/AiController.php` | 支持 DeepSeek 配置与状态 |
 | `src/Rest/Controllers/ReportsController.php` | 新增稳定的站点报告汇总契约 |
-| `assets/src/admin/components/Reports.js` | 新增报告查看、刷新与 CSV 导出页面 |
+| `assets/src/admin/components/Reports.js` | 新增报告查看、刷新与 CSV/PDF 导出页面 |
+| `assets/src/admin/reportPdf*.js` | 浏览器端生成支持中文、续表与页码的 A4 PDF |
 | `src/Admin/Menu.php` | 移除未实现入口并修复子菜单空白页 |
 | `src/Application/Notifications/WeeklyDigest.php` | 新增周报聚合、邮件发送、站点时区调度和幂等状态 |
+| `src/Application/Notifications/CriticalIssueNotifier.php` | 扫描完成后汇总严重问题，并按问题集合去重发送 |
 | `src/Rest/Controllers/NotificationsController.php` | 新增测试邮件端点 |
 | `assets/src/admin/components/Settings.js` | 增加周报配置、测试发送和状态展示 |
 | `assets/src/admin/apiError.js` | 统一将服务器 HTML 错误降级为当前操作的纯文本提示 |
@@ -150,19 +154,30 @@
 | `src/Domain/Metrics/MetricsRepository.php` | 幂等保存页面 × 查询 × 国家 × 设备快照，并提供 28 天维度聚合与每日趋势 |
 | `assets/src/admin/components/Reports.js` / `ReportTables.js` | 展示搜索趋势、热门查询、国家和设备表现 |
 | `src/Infrastructure/Http/RetryPolicy.php` | 为搜索 API 提供有上限的暂时性失败重试、指数退避与 `Retry-After` 解析 |
+| `src/Application/Planning/TopicOpportunityFinder.php` | 将本地搜索查询证据分类为临门一脚、优先刷新和低置信主题缺口候选 |
+| `src/Rest/Controllers/PlanningController.php` / `assets/src/admin/components/Planning.js` | 提供分页主题机会 API 与后台内容规划视图 |
+| `src/Application/Planning/PlanningCalendar.php` / `src/Domain/Planning/CalendarRepository.php` | 按站点时区聚合原生定时文章与到期复核内容 |
+| `assets/src/admin/components/PlanningCalendar.js` / `PlanningCalendarLists.js` | 展示发布计划、过期提醒并支持标记复核完成 |
+| `src/Application/Optimize/RevisionDraftService.php` | 通过公开 WordPress Post API 创建安全、幂等的 Revision，并校验完整快照冲突 |
+| `src/Rest/Controllers/OptimizerController.php` | 提供编辑快照并新增 `/recommendations/apply` 契约与对象级权限检查 |
+| `assets/src/admin/components/OptimizerRevisionPanel.js` / `RevisionDiffPreview.js` | 编辑拟议字段、预览差异并创建 Revision |
 
 ## 待开发 / 建议下一步
 
 1. **内容规划与日历**
-   - 主题机会发现
-   - 发布计划与过期内容提醒
+   - 主题机会发现（已完成首版：本地 GSC/Bing 证据、三类保守规则与人工复核提示）
+   - 发布计划与过期内容提醒（已完成首版：原生定时文章、站点时区、画像复核周期）
 
 2. **报告与通知**
-   - 严重问题通知
-   - PDF 报告导出（当前已支持后台汇总与 CSV）
+   - 严重问题通知（已完成首版：扫描完成汇总、`critical`/`high`、集合去重与独立状态）
+   - PDF 报告导出（已完成首版：浏览器端 A4 生成、中文渲染、自动分页与下载错误提示）
 
 3. **测试与质量**
-   - Playwright E2E 测试
+   - Playwright E2E 测试（已完成首版：wp-env、首次引导、规划/报告导航、PDF 下载与 CI 失败诊断）
+
+4. **优化工作台闭环**
+   - Revision Diff 与安全创建修订（已完成首版：完整字段快照、差异预览、能力与对象权限、并发冲突、幂等提交）
+   - Evidence Panel、内链建议、完成与发布后验证（待开发）
 
 ## 部署备忘
 
@@ -174,11 +189,12 @@
 
 ## 已知限制
 
-- PHP 8.4 CLI 已可用；2026-07-21 已对项目全部 PHP 文件执行语法检查并通过。
+- PHP 8.4 CLI 已可用；2026-07-22 已对项目全部 PHP 文件执行语法检查并通过。
 - GitHub Actions 已在 PHP 8.0–8.4、WordPress 6.6/latest 与 MySQL 8 矩阵中通过 PHPUnit、PHPCompatibility 和 WPCS（2026-07-22）。
-- 已将 TypeScript 固定为与 `@wordpress/scripts@27` 兼容的 5.4.x；JS lint、React 构建与 CSS lint 均已成功（2026-07-21）。
-- 本机没有运行中的 WordPress 实例或可复用后台浏览器页面，首次设置尚未执行真实 E2E 回归。
-- Google 每个内容 URL/日期保存前 100 个查询 × 国家 × 设备组合；Bing 当前接口只提供查询维度，不提供国家和设备字段。
+- 已将 TypeScript 固定为与 `@wordpress/scripts@27` 兼容的 5.4.x；Jest、JS lint、React 构建与 CSS lint 均已成功（2026-07-22）。
+- 本机 PHPUnit 因 PHP 8.4 CLI 未启用 `mbstring` 而在框架启动阶段停止；相关用例已提交，但本轮无法在本机执行。
+- 本机没有 Docker 命令，无法启动 wp-env；Playwright 配置、测试发现与静态检查已在本地验证，真实 WordPress 后台旅程由 CI 执行。
+- Google 每个内容 URL/日期保存前 100 个查询 × 国家 × 设备组合；Bing 查询统计由 API 返回自身日期（通常按周更新），且不提供国家和设备字段。
 - 搜索 API 暂时性失败最多同步尝试 3 次、单次等待最多 2 秒；凭据、权限等确定性 4xx 会立即失败并进入健康状态记录。
 - Google Search Console 需要在 Google Cloud Console 创建 OAuth Web Client，并将插件显示的 callback URI 加入授权重定向 URI。
 - Bing Webmaster Tools 需要 API Key（Bing 后台“API 访问”）。

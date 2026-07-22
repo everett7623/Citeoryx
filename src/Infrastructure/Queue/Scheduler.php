@@ -166,6 +166,7 @@ class Scheduler {
 				if ( 'incremental' === $run->scan_type ) {
 					update_option( 'citeoryx_last_incremental_scan', current_time( 'mysql' ) );
 				}
+				do_action( 'citeoryx_scan_completed', $run_id );
 				return;
 			}
 

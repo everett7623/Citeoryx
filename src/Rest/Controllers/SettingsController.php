@@ -9,6 +9,7 @@ namespace Citeoryx\Rest\Controllers;
 
 use Citeoryx\Application\Settings\SiteProfileSchema;
 use Citeoryx\Application\Notifications\WeeklyDigest;
+use Citeoryx\Application\Notifications\CriticalIssueNotifier;
 use Citeoryx\Core\Capabilities;
 use WP_REST_Request;
 
@@ -103,11 +104,12 @@ class SettingsController extends BaseController {
 		$profile        = $profile_schema->sanitize( get_option( 'citeoryx_site_profile', array() ) );
 
 		return array(
-			'settings'            => $this->sanitize_settings( get_option( 'citeoryx_settings', array() ) ),
-			'profile'             => $profile,
-			'profile_complete'    => $profile_schema->is_complete( $profile ),
-			'profile_options'     => $profile_schema->options(),
-			'notification_status' => $this->notification_status(),
+			'settings'              => $this->sanitize_settings( get_option( 'citeoryx_settings', array() ) ),
+			'profile'               => $profile,
+			'profile_complete'      => $profile_schema->is_complete( $profile ),
+			'profile_options'       => $profile_schema->options(),
+			'notification_status'   => $this->notification_status(),
+			'critical_alert_status' => $this->critical_alert_status(),
 		);
 	}
 
@@ -134,13 +136,36 @@ class SettingsController extends BaseController {
 	}
 
 	/**
+	 * Read the optional serious-issue alert state.
+	 *
+	 * @return array{status:string,message:string,attempted_at:string|null,recipient:string,issue_count:int}
+	 */
+	private function critical_alert_status(): array {
+		try {
+			return $this->container->get( CriticalIssueNotifier::class )->get_status();
+		} catch ( \Throwable $error ) {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( '[Citeoryx] Unable to read critical alert status: ' . $error->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			}
+
+			return array(
+				'status'       => 'never',
+				'message'      => '',
+				'attempted_at' => null,
+				'recipient'    => '',
+				'issue_count'  => 0,
+			);
+		}
+	}
+
+	/**
 	 * Validate setting value types before casting them.
 	 *
 	 * @param array<string, mixed> $settings Settings.
 	 * @return string
 	 */
 	private function validate_settings( array $settings ): string {
-		foreach ( array( 'auto_scan', 'remove_data_on_uninstall', 'weekly_digest_enabled' ) as $key ) {
+		foreach ( array( 'auto_scan', 'remove_data_on_uninstall', 'weekly_digest_enabled', 'critical_alerts_enabled' ) as $key ) {
 			if ( array_key_exists( $key, $settings ) && ! is_bool( $settings[ $key ] ) ) {
 				return __( '设置包含无效的开关值。', 'citeoryx' );
 			}
@@ -183,6 +208,9 @@ class SettingsController extends BaseController {
 		if ( isset( $settings['weekly_digest_enabled'] ) && is_scalar( $settings['weekly_digest_enabled'] ) ) {
 			$sanitized['weekly_digest_enabled'] = (bool) $settings['weekly_digest_enabled'];
 		}
+		if ( isset( $settings['critical_alerts_enabled'] ) && is_scalar( $settings['critical_alerts_enabled'] ) ) {
+			$sanitized['critical_alerts_enabled'] = (bool) $settings['critical_alerts_enabled'];
+		}
 		if ( isset( $settings['notification_email'] ) && is_scalar( $settings['notification_email'] ) ) {
 			$sanitized['notification_email'] = sanitize_email( (string) $settings['notification_email'] );
 		}
@@ -200,6 +228,7 @@ class SettingsController extends BaseController {
 			'auto_scan'                => true,
 			'remove_data_on_uninstall' => false,
 			'weekly_digest_enabled'    => false,
+			'critical_alerts_enabled'  => false,
 			'notification_email'       => sanitize_email( (string) get_option( 'admin_email' ) ),
 		);
 	}

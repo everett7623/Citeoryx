@@ -19,6 +19,7 @@ use Citeoryx\Rest\Controllers\AiController;
 use Citeoryx\Rest\Controllers\BingController;
 use Citeoryx\Rest\Controllers\NotificationsController;
 use Citeoryx\Rest\Controllers\ReportsController;
+use Citeoryx\Rest\Controllers\PlanningController;
 
 /**
  * Registers REST routes.
@@ -50,5 +51,6 @@ class Router {
 		( new AiController( $this->container ) )->register( $namespace );
 		( new NotificationsController( $this->container ) )->register( $namespace );
 		( new ReportsController( $this->container ) )->register( $namespace );
+		( new PlanningController( $this->container ) )->register( $namespace );
 	}
 }

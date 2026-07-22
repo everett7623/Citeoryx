@@ -15,20 +15,26 @@ use Citeoryx\Infrastructure\Http\RetryPolicy;
  */
 class BingWebmasterTools implements SearchConsoleInterface {
 
-	const API_BASE = 'https://www.bing.com/webmaster/api.svc/json/';
+	const API_BASE = 'https://ssl.bing.com/webmaster/api.svc/json/';
 	const KEY_NAME = 'bing_webmaster_api_key';
 
 	/**
+	 * Site URL used by Bing requests.
+	 *
 	 * @var string
 	 */
 	private string $site_url;
 
 	/**
+	 * Last safe request error summary.
+	 *
 	 * @var string|null
 	 */
 	private ?string $last_error = null;
 
 	/**
+	 * Bounded HTTP retry policy.
+	 *
 	 * @var RetryPolicy
 	 */
 	private RetryPolicy $retry_policy;
@@ -39,7 +45,7 @@ class BingWebmasterTools implements SearchConsoleInterface {
 	 * @param RetryPolicy|null $retry_policy HTTP retry policy.
 	 */
 	public function __construct( ?RetryPolicy $retry_policy = null ) {
-		$this->retry_policy = $retry_policy ?: new RetryPolicy();
+		$this->retry_policy = $retry_policy ?? new RetryPolicy();
 		$this->site_url     = trailingslashit( get_option( 'siteurl', home_url() ) );
 	}
 
@@ -131,33 +137,15 @@ class BingWebmasterTools implements SearchConsoleInterface {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function get_metrics( string $start_date, string $end_date, array $options = array() ): array {
+
 		$query = http_build_query(
 			array(
-				'siteUrl'   => $this->site_url,
-				'startDate' => $start_date,
-				'endDate'   => $end_date,
+				'siteUrl' => $this->site_url,
 			)
 		);
 
 		$data = $this->request( 'GetQueryStats?' . $query );
-		$rows = $data['d']['results'] ?? $data['d']['QueryStats'] ?? array();
-
-		if ( ! is_array( $rows ) ) {
-			return array();
-		}
-
-		return array_map(
-			static function ( array $row ): array {
-				return array(
-					'query'       => $row['Query'] ?? '',
-					'impressions' => $row['Impressions'] ?? 0,
-					'clicks'      => $row['Clicks'] ?? 0,
-					'ctr'         => 0.0,
-					'position'    => $row['AvgPosition'] ?? 0,
-				);
-			},
-			$rows
-		);
+		return $this->normalize_rows( $data['d'] ?? array() );
 	}
 
 	/**
@@ -170,34 +158,16 @@ class BingWebmasterTools implements SearchConsoleInterface {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function get_queries_for_url( string $url, string $start_date, string $end_date, array $options = array() ): array {
+
 		$query = http_build_query(
 			array(
-				'siteUrl'   => $this->site_url,
-				'url'       => $url,
-				'startDate' => $start_date,
-				'endDate'   => $end_date,
+				'siteUrl' => $this->site_url,
+				'page'    => $url,
 			)
 		);
 
-		$data = $this->request( 'GetUrlQueryStats?' . $query );
-		$rows = $data['d']['results'] ?? $data['d']['UrlQueryStats'] ?? array();
-
-		if ( ! is_array( $rows ) ) {
-			return array();
-		}
-
-		return array_map(
-			static function ( array $row ): array {
-				return array(
-					'query'       => $row['Query'] ?? '',
-					'impressions' => $row['Impressions'] ?? 0,
-					'clicks'      => $row['Clicks'] ?? 0,
-					'ctr'         => 0.0,
-					'position'    => $row['AvgPosition'] ?? 0,
-				);
-			},
-			$rows
-		);
+		$data = $this->request( 'GetPageQueryStats?' . $query );
+		return $this->normalize_rows( $data['d'] ?? array() );
 	}
 
 	/**
@@ -206,8 +176,9 @@ class BingWebmasterTools implements SearchConsoleInterface {
 	 * @return array<int, string>
 	 */
 	public function list_sites(): array {
+
 		$data  = $this->request( 'GetUserSites' );
-		$sites = $data['d']['results'] ?? $data['d']['Sites'] ?? array();
+		$sites = $data['d'] ?? array();
 		return array_map(
 			static function ( array $site ): string {
 				return $site['Url'] ?? '';
@@ -269,5 +240,51 @@ class BingWebmasterTools implements SearchConsoleInterface {
 		}
 
 		return $data;
+	}
+
+	/**
+	 * Map Bing query statistics to the shared provider contract.
+	 *
+	 * @param mixed $rows Bing response rows.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function normalize_rows( $rows ): array {
+
+		if ( ! is_array( $rows ) ) {
+			return array();
+		}
+
+		return array_map(
+			static function ( array $row ): array {
+
+				$impressions = (float) ( $row['Impressions'] ?? 0 );
+				$clicks      = (float) ( $row['Clicks'] ?? 0 );
+				return array(
+					'query'       => sanitize_text_field( (string) ( $row['Query'] ?? '' ) ),
+					'impressions' => $impressions,
+					'clicks'      => $clicks,
+					'ctr'         => $impressions > 0 ? round( $clicks / $impressions * 100, 2 ) : 0.0,
+					'position'    => (float) ( $row['AvgImpressionPosition'] ?? $row['AvgClickPosition'] ?? 0 ),
+					'metric_date' => self::parse_metric_date( (string) ( $row['Date'] ?? '' ) ),
+				);
+			},
+			array_values( array_filter( $rows, 'is_array' ) )
+		);
+	}
+
+	/**
+	 * Parse the Microsoft JSON date representation.
+	 *
+	 * @param string $value Date value.
+	 * @return string|null
+	 */
+	private static function parse_metric_date( string $value ): ?string {
+
+		if ( preg_match( '/^\\/Date\\((\d+)/', $value, $matches ) ) {
+			return gmdate( 'Y-m-d', (int) floor( (int) $matches[1] / 1000 ) );
+		}
+
+		$timestamp = strtotime( $value );
+		return false === $timestamp ? null : gmdate( 'Y-m-d', $timestamp );
 	}
 }

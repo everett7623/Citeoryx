@@ -154,6 +154,38 @@
 	border-bottom: none;
 }
 
+.citeoryx-revision-diff {
+	margin-bottom: 16px;
+}
+
+.citeoryx-revision-diff section {
+	border-top: 1px solid #ddd;
+	padding: 12px 0;
+}
+
+.citeoryx-revision-diff__columns {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.citeoryx-revision-diff pre {
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	max-height: 240px;
+	overflow: auto;
+	padding: 12px;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+@media (max-width: 782px) {
+
+	.citeoryx-revision-diff__columns {
+		grid-template-columns: 1fr;
+	}
+}
+
 .citeoryx-rec__header {
 	display: flex;
 	align-items: center;
@@ -221,9 +253,63 @@
 	font-size: 0.85rem;
 }
 
+.citeoryx-planning__list {
+	display: grid;
+	gap: 1rem;
+}
+
+.citeoryx-planning__meta {
+	color: #646970;
+	margin-top: 0;
+}
+
+.citeoryx-planning .components-card__header {
+	display: flex;
+	justify-content: space-between;
+}
+
+.citeoryx-calendar {
+	margin-bottom: 1.5rem;
+}
+
+.citeoryx-calendar__grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 1rem;
+}
+
+.citeoryx-calendar__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.citeoryx-calendar__item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 1rem;
+	border-bottom: 1px solid #e0e0e0;
+	padding: 0.65rem 0;
+}
+
+.citeoryx-calendar__item:last-child {
+	border-bottom: 0;
+}
+
+.citeoryx-calendar__list span {
+	display: block;
+	color: #646970;
+	font-size: 0.8rem;
+}
+
 @media (max-width: 600px) {
 
 	.citeoryx-reports__grid {
+		grid-template-columns: 1fr;
+	}
+
+	.citeoryx-calendar__grid {
 		grid-template-columns: 1fr;
 	}
 }
