@@ -59,6 +59,7 @@ function citeoryx_delete_options(): void {
 		'citeoryx_remove_data_on_uninstall',
 		'citeoryx_gsc_client',
 		'citeoryx_ai_provider',
+		'citeoryx_ai_provider_settings',
 		'citeoryx_last_change_detection',
 		'citeoryx_last_incremental_scan',
 		'citeoryx_last_weekly_digest_period',
@@ -71,6 +72,10 @@ function citeoryx_delete_options(): void {
 		'citeoryx_key_gsc_client_secret',
 		'citeoryx_key_bing_webmaster_api_key',
 		'citeoryx_key_openai_api_key',
+		'citeoryx_key_anthropic_api_key',
+		'citeoryx_key_deepseek_api_key',
+		'citeoryx_key_openai_compatible_api_key',
+		'citeoryx_key_anthropic_compatible_api_key',
 	);
 
 	foreach ( $options as $option ) {

@@ -64,6 +64,18 @@ class SettingsControllerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The empty profile must retain its object shape in the JSON contract.
+	 *
+	 * @return void
+	 */
+	public function test_get_settings_serializes_empty_profile_as_object(): void {
+		$response = $this->controller->get_settings();
+		$profile  = $response->get_data()['data']['profile'];
+
+		$this->assertSame( '{}', wp_json_encode( $profile ) );
+	}
+
+	/**
 	 * An optional notification failure must not block the first settings step.
 	 *
 	 * @return void

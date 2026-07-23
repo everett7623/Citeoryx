@@ -40,7 +40,7 @@
     "high_priority": [...],
     "recent_scans": [...],
     "seo_plugin": "rank-math",
-    "plugin_version": "2.1.0"
+    "plugin_version": "2.1.7"
   }
 }
 ```
@@ -74,7 +74,7 @@
       "top_items": []
     },
     "scans": { "recent": [] },
-    "plugin": { "version": "2.1.0", "seo_plugin": "rank-math" }
+    "plugin": { "version": "2.1.7", "seo_plugin": "rank-math" }
   }
 }
 ```
@@ -386,7 +386,8 @@ All integration configuration endpoints require `citeoryx_manage_integrations`. 
 | GET | `/integrations/gsc/queries?url={url}` | Get search queries for one canonical URL |
 | GET | `/integrations/gsc/sites` | List Search Console sites available to the connected account |
 | GET | `/integrations/ai` | Get configured AI provider state without exposing secrets |
-| POST | `/integrations/ai/settings` | Configure the active AI provider (`openai`, `deepseek`, or `none`) and store its API key encrypted |
+| POST | `/integrations/ai/settings` | Configure OpenAI, Anthropic, DeepSeek, OpenAI-compatible, OpenAI Responses-compatible, Anthropic-compatible, or `none`; API keys are stored encrypted |
+| POST | `/integrations/ai/validate` | Send a minimal request with the saved provider and return an explicit connection result |
 | POST | `/integrations/ai/analyze/{id}` | Generate AI improvement and discoverability analysis for a content item |
 | GET | `/integrations/bing` | Get Bing Webmaster Tools connection state |
 | POST | `/integrations/bing/settings` | Save Bing Webmaster Tools API key |
@@ -417,7 +418,13 @@ Google and Bing requests retry transient network errors, HTTP 429, and HTTP 5xx 
 
 ```json
 {
-  "provider": "openai",
-  "api_key": "sk-..."
+  "provider": "anthropic_compatible",
+  "api_key": "provider-secret",
+  "model": "claude-haiku-4-5-20251001",
+  "base_url": "https://api.example.com/custom-endpoint?route=sub2api"
 }
 ```
+
+`provider` 可为 `openai`、`anthropic`、`deepseek`、`openai_compatible`、`openai_responses`、`anthropic_compatible` 或 `none`。官方提供商的 `model` 可省略并使用默认值。`openai_compatible` 与 `anthropic_compatible` 必须同时提交 `model` 与完整 HTTPS 请求 URL `base_url`，系统会原样使用该 URL。`openai_responses` 用于 Sub2API/Codex 等 Responses 协议网关，`base_url` 填 HTTPS 服务根地址，系统请求其 `/v1/responses`。兼容 URL 允许查询参数，但不得包含用户名、密码或片段。密钥不出现在任何 GET 响应中。
+
+`POST /integrations/ai/validate` 使用当前已保存的提供商、模型、端点和加密 API Key 发送一次最小请求，返回 `data.valid` 与可展示的 `data.message`。该响应不会包含密钥或第三方响应正文。

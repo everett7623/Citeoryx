@@ -1,6 +1,7 @@
 .citeoryx-admin {
-	max-width: 1200px;
+	max-width: 1600px;
 	margin: 0 auto;
+	padding: 0 16px 32px;
 }
 
 .citeoryx-admin__title {
@@ -92,6 +93,39 @@
 	margin-bottom: 1rem;
 }
 
+.citeoryx-integrations {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16px;
+}
+
+.citeoryx-integrations__ai-card {
+	grid-column: 1 / -1;
+}
+
+.citeoryx-ai-settings__grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16px;
+	margin-bottom: 16px;
+}
+
+.citeoryx-ai-settings__endpoint {
+	grid-column: 1 / -1;
+}
+
+.citeoryx-ai-settings__actions {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.citeoryx-ai-settings__test-hint {
+	margin: 8px 0 0;
+	color: #646970;
+}
+
 .citeoryx-settings__status {
 	color: #646970;
 	font-size: 0.85rem;
@@ -124,6 +158,15 @@
 
 	.citeoryx-field-grid {
 		grid-template-columns: 1fr;
+	}
+
+	.citeoryx-integrations,
+	.citeoryx-ai-settings__grid {
+		grid-template-columns: 1fr;
+	}
+
+	.citeoryx-ai-settings__endpoint {
+		grid-column: auto;
 	}
 }
 

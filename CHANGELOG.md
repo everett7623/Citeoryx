@@ -1,5 +1,52 @@
 # Changelog
 
+## 2.1.7 - 2026-07-23
+
+### Added
+- 新增 OpenAI Responses API（Sub2API / Codex）模式：填写服务根地址后按 Responses 协议请求 `/v1/responses`，使用 `input` 请求体与 `store: false`。
+
+### Fixed
+- AI 连接测试失败时返回安全的 HTTP 状态或网络错误，不再仅显示无法定位的泛化提示。
+
+## 2.1.6 - 2026-07-23
+
+### Fixed
+- OpenAI / Anthropic 兼容 API 现在原样使用用户填写的完整 HTTPS 请求 URL，不再自动追加 `/chat/completions` 或 `/messages`。
+- 自定义请求 URL 允许查询参数，同时继续拒绝 URL 用户信息和片段，并使用 WordPress 安全 HTTP 客户端。
+
+## 2.1.5 - 2026-07-22
+
+### Fixed
+- “测试连接”按钮现在只依据服务端确认的活动提供商与已保存 Key 启用，不再被浏览器自动填充或表单显示值错误禁用。
+- API Key 输入框声明为新密码字段，降低浏览器和密码管理器复用登录凭据的概率。
+
+## 2.1.4 - 2026-07-22
+
+### Fixed
+- 修复 AI 设置保存后状态接口把提供商对象传给字符串参数引发的 `TypeError`，保存完成后“测试连接”按钮现在可以正常启用。
+
+## 2.1.3 - 2026-07-22
+
+### Fixed
+- AI 提供商设置新增“测试连接”按钮，使用已保存的 API Key、模型和端点发送最小请求，并明确显示成功或失败结果。
+- 有未保存的提供商、Key、模型或端点变更时禁用连接测试，避免误把旧配置的测试结果当作当前输入结果。
+
+## 2.1.2 - 2026-07-22
+
+### Added
+- 新增 Anthropic Messages API 适配器，以及 OpenAI / Anthropic 协议兼容第三方 API 的自定义 HTTPS 基础地址和模型配置。
+- AI 集成页新增 Anthropic 与两种兼容模式，集成卡片改为响应式双栏布局，AI 配置卡片全宽显示。
+
+### Security
+- 自定义 AI API 地址仅接受无查询参数的 HTTPS 基础地址，调用统一走 WordPress 安全 HTTP 客户端；密钥继续加密存储且不返回给浏览器。
+
+## 2.1.1 - 2026-07-22
+
+### Fixed
+- 空站点画像在 Settings REST 响应中固定为对象，避免首次引导被前端契约校验拒绝。
+- 修复 WordPress TabPanel 的初始页属性，使 `#/reports` 深链接正确打开报告页。
+- 修复 PHP 8.4 WPCS 检查中的 `SearchSchedulerTest` 关联数组格式错误。
+
 ## 2.1.0 - 2026-07-21
 
 ### Added

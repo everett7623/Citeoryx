@@ -22,6 +22,18 @@ class NullAiProvider implements AiProviderInterface {
 	}
 
 	/**
+	 * Return a failed connection result.
+	 *
+	 * @return array{valid: bool, message: string}
+	 */
+	public function test_connection(): array {
+		return array(
+			'valid'   => false,
+			'message' => __( '请先保存 AI 提供商和 API Key。', 'citeoryx' ),
+		);
+	}
+
+	/**
 	 * Return empty suggestions.
 	 *
 	 * @param string               $content Content.

@@ -140,7 +140,7 @@ const App = () => {
 				className="citeoryx-admin__tabs"
 				activeClass="active-tab"
 				tabs={ tabs }
-				initialTab={ initialTab }
+				initialTabName={ initialTab }
 				onSelect={ ( tab ) => {
 					window.location.hash = `/${ tab }`;
 				} }

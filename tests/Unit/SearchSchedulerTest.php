@@ -37,7 +37,12 @@ class SearchSchedulerTest extends WP_UnitTestCase {
 	 * @return void
 	 */
 	public function test_ensure_schedule_creates_daily_event(): void {
-		$scheduler = $this->scheduler( array( 'complete' => true, 'last_id' => 0 ) );
+		$scheduler = $this->scheduler(
+			array(
+				'complete' => true,
+				'last_id'  => 0,
+			)
+		);
 
 		$scheduler->ensure_search_performance_schedule();
 		$first = wp_next_scheduled( 'citeoryx_daily_search_performance_import' );
@@ -53,7 +58,12 @@ class SearchSchedulerTest extends WP_UnitTestCase {
 	 * @return void
 	 */
 	public function test_incomplete_batch_schedules_next_cursor(): void {
-		$scheduler = $this->scheduler( array( 'complete' => false, 'last_id' => 42 ) );
+		$scheduler = $this->scheduler(
+			array(
+				'complete' => false,
+				'last_id'  => 42,
+			)
+		);
 
 		$scheduler->import_search_performance_batch( 0 );
 

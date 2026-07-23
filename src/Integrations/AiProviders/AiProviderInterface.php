@@ -20,6 +20,13 @@ interface AiProviderInterface {
 	public function is_configured(): bool;
 
 	/**
+	 * Validate the saved provider configuration with a minimal request.
+	 *
+	 * @return array{valid: bool, message: string}
+	 */
+	public function test_connection(): array;
+
+	/**
 	 * Generate content improvement suggestions.
 	 *
 	 * @param string               $content Content.

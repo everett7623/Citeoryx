@@ -100,12 +100,13 @@ class SettingsController extends BaseController {
 	 * @return array<string, mixed>
 	 */
 	private function settings_payload(): array {
-		$profile_schema = new SiteProfileSchema();
-		$profile        = $profile_schema->sanitize( get_option( 'citeoryx_site_profile', array() ) );
+		$profile_schema  = new SiteProfileSchema();
+		$profile         = $profile_schema->sanitize( get_option( 'citeoryx_site_profile', array() ) );
+		$profile_payload = empty( $profile ) ? new \stdClass() : $profile;
 
 		return array(
 			'settings'              => $this->sanitize_settings( get_option( 'citeoryx_settings', array() ) ),
-			'profile'               => $profile,
+			'profile'               => $profile_payload,
 			'profile_complete'      => $profile_schema->is_complete( $profile ),
 			'profile_options'       => $profile_schema->options(),
 			'notification_status'   => $this->notification_status(),

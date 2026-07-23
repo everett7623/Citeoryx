@@ -1,8 +1,8 @@
 # Citeoryx 开发进度
 
-> 最后更新：2026-07-22
+> 最后更新：2026-07-23
 
-> 当前发布版本：2.1.0
+> 当前发布版本：2.1.7
 > 下一开发目标：2.2.0
 
 ## 已完成功能
@@ -65,9 +65,11 @@
 ### 外部集成
 - SEO 插件适配器：Yoast SEO / Rank Math / AIOSEO
 - Google Search Console：OAuth 2.0 授权、token 自动刷新、站点列表、站点指标与 URL 查询词读取
-- OpenAI：通过 Chat Completions API 生成内容优化建议与 AI 可发现性分析
-- OAuth token、Google client secret、OpenAI API key 通过 `KeyStore` 加密存储
-- 管理端“集成”页可配置、连接和断开 Google Search Console，并配置 OpenAI
+- OpenAI / DeepSeek：通过 Chat Completions API 生成内容优化建议与 AI 可发现性分析
+- Anthropic：通过 Messages API 生成内容优化建议与 AI 可发现性分析
+- 支持 OpenAI / Anthropic 兼容的第三方 HTTPS API 基础地址与模型标识
+- OAuth token、Google client secret 和 AI API key 通过 `KeyStore` 加密存储
+- 管理端“集成”页可配置、连接和断开 Google Search Console，并配置 AI 提供商
 - Bing Webmaster Tools：API Key 认证、站点列表、查询指标与 URL 查询词读取
 - DeepSeek：通过 Chat Completions API 生成内容优化建议与 AI 可发现性分析
 - 所有搜索控制台与 AI 密钥通过 `KeyStore` 加密存储
@@ -120,10 +122,13 @@
 | `src/Integrations/SearchConsole/GoogleOAuth.php` | Google OAuth 授权、回调、token 刷新与加密存储 |
 | `src/Integrations/SearchConsole/GoogleSearchConsole.php` | Google Search Console API 适配器 |
 | `src/Rest/Controllers/SearchConsoleController.php` | Google Search Console REST 端点 |
-| `src/Integrations/AiProviders/OpenAiProvider.php` | OpenAI 内容建议与可发现性分析适配器 |
-| `src/Integrations/AiProviders/AiProviderFactory.php` | AI 提供商解析工厂 |
+| `src/Integrations/AiProviders/AbstractAiProvider.php` | AI 提示词、加密密钥与安全 HTTP 请求共享逻辑 |
+| `src/Integrations/AiProviders/OpenAiCompatibleProvider.php` | OpenAI Chat Completions 协议及兼容 API 适配器 |
+| `src/Integrations/AiProviders/AnthropicCompatibleProvider.php` | Anthropic Messages 协议及兼容 API 适配器 |
+| `src/Integrations/AiProviders/AiProviderFactory.php` | AI 提供商、模型与兼容端点解析工厂 |
 | `src/Rest/Controllers/AiController.php` | AI 配置与内容分析 REST 端点 |
-| `assets/src/admin/components/Integrations.js` | Google Search Console、Bing Webmaster Tools、OpenAI 与 DeepSeek 配置界面 |
+| `assets/src/admin/components/AiIntegrationSettings.js` | AI 提供商、模型与兼容 API 地址配置界面 |
+| `assets/src/admin/components/Integrations.js` | Google Search Console、Bing Webmaster Tools 集成界面 |
 | `src/Integrations/SearchConsole/BingWebmasterTools.php` | Bing Webmaster Tools API 适配器 |
 | `src/Rest/Controllers/BingController.php` | Bing Webmaster Tools REST 端点 |
 | `src/Integrations/AiProviders/DeepSeekProvider.php` | DeepSeek Chat Completions 适配器 |
@@ -198,4 +203,4 @@
 - 搜索 API 暂时性失败最多同步尝试 3 次、单次等待最多 2 秒；凭据、权限等确定性 4xx 会立即失败并进入健康状态记录。
 - Google Search Console 需要在 Google Cloud Console 创建 OAuth Web Client，并将插件显示的 callback URI 加入授权重定向 URI。
 - Bing Webmaster Tools 需要 API Key（Bing 后台“API 访问”）。
-- OpenAI / DeepSeek 使用需要单独配置 API Key；密钥不会返回给浏览器或 REST 响应。
+- OpenAI、Anthropic、DeepSeek 及其兼容 API 使用需要单独配置 API Key；密钥不会返回给浏览器或 REST 响应。
