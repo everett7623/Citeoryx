@@ -4,20 +4,24 @@
 
 ### Added
 - 新增统一的日志类 `Logger`，规范化调试输出
-- Dashboard 首次使用时显示友好的空状态提示
+- Dashboard、Inventory、Issues 添加友好的空状态提示
+- 添加移动端响应式优化（支持 782px 和 600px 断点）
 
 ### Changed
 - 调试日志统一使用 `Logger` 类，支持结构化上下文
-- 优化前端构建产物（81.7KB JS + 8.52KB CSS）
+- 优化前端构建产物（82.8KB JS + 8.52KB CSS）
+- 改进空列表显示，提供清晰的操作引导
 
 ### Fixed
 - 清理同步冲突文件 `SearchIntegrationHealth.sync-conflict-*.php`
 - 规范化 4 处 `error_log()` 调用
+- 修复表格和分页组件在条件渲染时的布局问题
 
 ### Development
 - 新增项目升级优化报告 `UPGRADE-REPORT.md`
 - 统一 AI 工具开发文档（CLAUDE.md, .cursorrules, copilot-instructions.md）
 - 新增通用 AI 开发指南 `AI-GUIDELINES.md`
+- 新增执行总结 `UPGRADE-SUMMARY.md`
 
 ## 2.3.0 - 2026-07-25
 

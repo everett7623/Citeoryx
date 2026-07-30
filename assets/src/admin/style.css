@@ -297,6 +297,64 @@
 	border-bottom: none;
 }
 
+/* 移动端响应式优化 */
+@media (max-width: 782px) {
+	/* WordPress 后台断点 */
+	.citeoryx-optimizer-workspace,
+	.citeoryx-optimizer__workspace {
+		grid-template-columns: 1fr;
+		gap: 16px;
+	}
+
+	.citeoryx-integrations-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.citeoryx-report-stats,
+	.citeoryx-stat-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+
+	.citeoryx-planning-calendar {
+		grid-template-columns: 1fr;
+	}
+
+	.citeoryx-filters {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.citeoryx-filters > * {
+		width: 100%;
+	}
+
+	.citeoryx-ai-analysis__evidence {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (max-width: 600px) {
+	.citeoryx-report-stats,
+	.citeoryx-stat-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.citeoryx-issue-card,
+	.citeoryx-content-card {
+		padding: 12px;
+	}
+
+	.citeoryx-dashboard h2 {
+		font-size: 1.2rem;
+	}
+
+	/* 表格在小屏幕上可滚动 */
+	.wp-list-table {
+		display: block;
+		overflow-x: auto;
+	}
+}
+
 .citeoryx-recommendation-evidence {
 	border-left: 3px solid #72aee6;
 	margin: 0.75rem 0;

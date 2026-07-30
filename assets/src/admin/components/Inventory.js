@@ -11,7 +11,9 @@ import {
 	TextControl,
 	SelectControl,
 	Notice,
+	Placeholder,
 } from '@wordpress/components';
+import { postList } from '@wordpress/icons';
 
 const Inventory = () => {
 	const canExport = Boolean( window.citeoryxAdmin?.user?.canExport );
@@ -190,9 +192,22 @@ const Inventory = () => {
 
 					{ loading && <Spinner /> }
 
-					<table className="wp-list-table widefat fixed striped table-view-list">
-						<thead>
-							<tr>
+					{ ! loading && items.length === 0 && (
+						<Placeholder
+							icon={ postList }
+							label={ __( '暂无内容资产', 'citeoryx' ) }
+							instructions={
+								appliedSearch || filters.status || filters.post_type
+									? __( '没有找到匹配的内容，请尝试调整筛选条件。', 'citeoryx' )
+									: __( '尚未发现任何内容资产。点击总览页的"开始扫描"按钮进行首次内容盘点。', 'citeoryx' )
+							}
+						/>
+					) }
+
+					{ ! loading && items.length > 0 && (
+						<table className="wp-list-table widefat fixed striped table-view-list">
+							<thead>
+								<tr>
 								<th>{ __( 'URL', 'citeoryx' ) }</th>
 								<th>{ __( '类型', 'citeoryx' ) }</th>
 								<th>{ __( '状态', 'citeoryx' ) }</th>
@@ -220,26 +235,29 @@ const Inventory = () => {
 									<td>{ item.modified_at }</td>
 								</tr>
 							) ) }
-						</tbody>
-					</table>
+							</tbody>
+						</table>
+					) }
 
-					<div className="citeoryx-pagination">
-						<Button
-							disabled={ page <= 1 }
-							onClick={ () => setPage( page - 1 ) }
-						>
-							{ __( '上一页', 'citeoryx' ) }
-						</Button>
-						<span>
-							{ page } / { totalPages || 1 }
-						</span>
-						<Button
-							disabled={ page >= totalPages }
-							onClick={ () => setPage( page + 1 ) }
-						>
-							{ __( '下一页', 'citeoryx' ) }
-						</Button>
-					</div>
+					{ ! loading && items.length > 0 && totalPages > 1 && (
+						<div className="citeoryx-pagination">
+							<Button
+								disabled={ page <= 1 }
+								onClick={ () => setPage( page - 1 ) }
+							>
+								{ __( '上一页', 'citeoryx' ) }
+							</Button>
+							<span>
+								{ page } / { totalPages || 1 }
+							</span>
+							<Button
+								disabled={ page >= totalPages }
+								onClick={ () => setPage( page + 1 ) }
+							>
+								{ __( '下一页', 'citeoryx' ) }
+							</Button>
+						</div>
+					) }
 				</CardBody>
 			</Card>
 		</div>

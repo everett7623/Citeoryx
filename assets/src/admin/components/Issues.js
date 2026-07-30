@@ -10,7 +10,9 @@ import {
 	Spinner,
 	SelectControl,
 	Notice,
+	Placeholder,
 } from '@wordpress/components';
+import { warning } from '@wordpress/icons';
 
 const Issues = () => {
 	const canExport = Boolean( window.citeoryxAdmin?.user?.canExport );
@@ -163,9 +165,24 @@ const Issues = () => {
 
 					{ loading && <Spinner /> }
 
-					<table className="wp-list-table widefat fixed striped table-view-list">
-						<thead>
-							<tr>
+					{ ! loading && issues.length === 0 && (
+						<Placeholder
+							icon={ warning }
+							label={ __( '暂无问题', 'citeoryx' ) }
+							instructions={
+								status === 'resolved'
+									? __( '尚无已解决的问题。', 'citeoryx' )
+									: status === 'ignored'
+									? __( '尚无已忽略的问题。', 'citeoryx' )
+									: __( '太棒了！当前没有待处理的问题。运行扫描以检查内容健康度。', 'citeoryx' )
+							}
+						/>
+					) }
+
+					{ ! loading && issues.length > 0 && (
+						<table className="wp-list-table widefat fixed striped table-view-list">
+							<thead>
+								<tr>
 								<th>{ __( '问题代码', 'citeoryx' ) }</th>
 								<th>{ __( '标题', 'citeoryx' ) }</th>
 								<th>{ __( '分类', 'citeoryx' ) }</th>
@@ -197,10 +214,12 @@ const Issues = () => {
 									</td>
 								</tr>
 							) ) }
-						</tbody>
-					</table>
+							</tbody>
+						</table>
+					) }
 
-					<div className="citeoryx-pagination">
+					{ ! loading && issues.length > 0 && totalPages > 1 && (
+						<div className="citeoryx-pagination">
 						<Button
 							disabled={ page <= 1 }
 							onClick={ () => setPage( page - 1 ) }
@@ -217,6 +236,7 @@ const Issues = () => {
 							{ __( '下一页', 'citeoryx' ) }
 						</Button>
 					</div>
+					) }
 				</CardBody>
 			</Card>
 		</div>
