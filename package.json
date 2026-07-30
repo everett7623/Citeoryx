@@ -1,6 +1,6 @@
 {
   "name": "citeoryx-admin",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "Citeoryx WordPress Plugin Admin UI",
   "private": true,
   "scripts": {
