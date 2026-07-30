@@ -9,7 +9,9 @@ import {
 	Button,
 	Spinner,
 	Notice,
+	Placeholder,
 } from '@wordpress/components';
+import { postList } from '@wordpress/icons';
 
 const Dashboard = () => {
 	const [ data, setData ] = useState( null );
@@ -124,6 +126,43 @@ const Dashboard = () => {
 
 	if ( loading && ! data ) {
 		return <Spinner />;
+	}
+
+	// 空状态：首次使用，无内容
+	if ( ! loading && data && data.total_content === 0 ) {
+		return (
+			<div className="citeoryx-dashboard">
+				{ error && (
+					<Notice status="error" isDismissible={ false }>
+						{ error }
+					</Notice>
+				) }
+				{ scanRun && (
+					<Notice status="info" isDismissible={ false }>
+						{ __( '扫描任务正在后台运行：', 'citeoryx' ) }{ ' ' }
+						{ scanRun.processed_items } / { scanRun.total_items || '—' }
+					</Notice>
+				) }
+				<Placeholder
+					icon={ postList }
+					label={ __( '欢迎使用 Citeoryx', 'citeoryx' ) }
+					instructions={ __(
+						'点击下方"开始扫描"按钮进行首次内容盘点，Citeoryx 将自动识别站点内容并生成健康报告。',
+						'citeoryx'
+					) }
+				>
+					<Button
+						variant="primary"
+						onClick={ runScan }
+						disabled={ Boolean( loading || scanId ) }
+					>
+						{ loading || scanId
+							? __( '扫描中…', 'citeoryx' )
+							: __( '开始扫描', 'citeoryx' ) }
+					</Button>
+				</Placeholder>
+			</div>
+		);
 	}
 
 	return (

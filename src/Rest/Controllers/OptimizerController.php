@@ -91,7 +91,8 @@ class OptimizerController extends BaseController {
 			return $this->error( $proposal->get_error_message(), 400 );
 		}
 
-		$result = $this->container->get( RevisionDraftService::class )->create(
+		$service = $this->container->get( RevisionDraftService::class );
+		$result  = $service->create(
 			(int) $request->get_param( 'content_id' ),
 			$proposal
 		);
@@ -101,7 +102,13 @@ class OptimizerController extends BaseController {
 			return $this->error( $result->get_error_message(), $status );
 		}
 
-		return $this->success( array( 'revision' => $result ), $result['created'] ? 201 : 200 );
+		return $this->success(
+			array(
+				'revision' => $result,
+				'workflow' => $service->get_workflow_status( (int) $request->get_param( 'content_id' ) ),
+			),
+			$result['created'] ? 201 : 200
+		);
 	}
 
 	/**

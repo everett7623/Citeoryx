@@ -2,11 +2,12 @@ import { useState, useEffect } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { getApiErrorMessage } from '../apiError';
+import AiAnalysisPanel from './AiAnalysisPanel';
+import OptimizerResults from './OptimizerResults';
 import OptimizerRevisionPanel from './OptimizerRevisionPanel';
 import {
 	Card,
 	CardBody,
-	CardHeader,
 	Button,
 	SelectControl,
 	Spinner,
@@ -14,15 +15,23 @@ import {
 } from '@wordpress/components';
 
 const Optimizer = () => {
+	const canUseAi = Boolean( window.citeoryxAdmin?.user?.canUseAi );
+	const canManageIntegrations = Boolean(
+		window.citeoryxAdmin?.user?.canManageIntegrations
+	);
 	const canApplyChanges = Boolean(
 		window.citeoryxAdmin?.user?.canApplyChanges
 	);
+	const canScan = Boolean( window.citeoryxAdmin?.user?.canScan );
 	const [ contentId, setContentId ] = useState( '' );
 	const [ data, setData ] = useState( null );
 	const [ loading, setLoading ] = useState( false );
 	const [ error, setError ] = useState( null );
 	const [ items, setItems ] = useState( [] );
 	const [ itemLoading, setItemLoading ] = useState( true );
+	const workspaceClass = canUseAi
+		? 'citeoryx-optimizer__workspace'
+		: 'citeoryx-optimizer__workspace citeoryx-optimizer__workspace--rules-only';
 
 	useEffect( () => {
 		apiFetch( { path: 'citeoryx/v1/content?per_page=100' } )
@@ -35,9 +44,23 @@ const Optimizer = () => {
 					} ) )
 				);
 			} )
-			.catch( () => setItems( [] ) )
+			.catch( ( requestError ) => {
+				setItems( [] );
+				setError(
+					getApiErrorMessage(
+						requestError,
+						__( '无法加载内容列表。', 'citeoryx' )
+					)
+				);
+			} )
 			.finally( () => setItemLoading( false ) );
 	}, [] );
+
+	const selectContent = ( value ) => {
+		setContentId( value );
+		setData( null );
+		setError( null );
+	};
 
 	const analyze = () => {
 		if ( ! contentId ) {
@@ -56,16 +79,43 @@ const Optimizer = () => {
 			.finally( () => setLoading( false ) );
 	};
 
-	const categoryLabel = ( category ) => {
-		const labels = {
-			content: __( '内容', 'citeoryx' ),
-			structure: __( '结构', 'citeoryx' ),
-			links: __( '链接', 'citeoryx' ),
-			discoverability: __( '可发现性', 'citeoryx' ),
-			aeo: __( 'AI 可发现性', 'citeoryx' ),
-			general: __( '通用', 'citeoryx' ),
-		};
-		return labels[ category ] || category;
+	const renderSelector = () => {
+		if ( itemLoading ) {
+			return <Spinner />;
+		}
+		if ( items.length === 0 ) {
+			return (
+				<Notice status="info" isDismissible={ false }>
+					{ __( '尚无可分析内容，请先运行内容扫描。', 'citeoryx' ) }
+				</Notice>
+			);
+		}
+
+		return (
+			<div className="citeoryx-optimizer__selector">
+				<SelectControl
+					label={ __( '选择内容', 'citeoryx' ) }
+					value={ contentId }
+					options={ [
+						{
+							label: __( '请选择', 'citeoryx' ),
+							value: '',
+						},
+						...items,
+					] }
+					onChange={ selectContent }
+				/>
+				<Button
+					variant="primary"
+					onClick={ analyze }
+					disabled={ loading || ! contentId }
+				>
+					{ loading
+						? __( '分析中…', 'citeoryx' )
+						: __( '生成优化建议', 'citeoryx' ) }
+				</Button>
+			</div>
+		);
 	};
 
 	return (
@@ -78,117 +128,30 @@ const Optimizer = () => {
 			) }
 
 			<Card>
-				<CardBody>
-					{ itemLoading ? (
-						<Spinner />
-					) : (
-						<>
-							<SelectControl
-								label={ __( '选择内容', 'citeoryx' ) }
-								value={ contentId }
-								options={ [
-									{
-										label: __( '请选择', 'citeoryx' ),
-										value: '',
-									},
-									...items,
-								] }
-								onChange={ ( value ) => setContentId( value ) }
-							/>
-							<Button
-								variant="primary"
-								onClick={ analyze }
-								disabled={ loading }
-							>
-								{ loading
-									? __( '分析中…', 'citeoryx' )
-									: __( '生成优化建议', 'citeoryx' ) }
-							</Button>
-						</>
-					) }
-				</CardBody>
+				<CardBody>{ renderSelector() }</CardBody>
 			</Card>
 
 			{ data && (
 				<>
-					<Card>
-						<CardHeader>{ __( '评分', 'citeoryx' ) }</CardHeader>
-						<CardBody>
-							<div className="citeoryx-stats">
-								<div className="citeoryx-stat">
-									<span className="citeoryx-stat__value">
-										{ data.scores.health.score ?? '-' }
-									</span>
-									<span className="citeoryx-stat__label">
-										{ __( '健康分', 'citeoryx' ) }
-									</span>
-								</div>
-								<div className="citeoryx-stat">
-									<span className="citeoryx-stat__value">
-										{ data.scores.aeo.score ?? '-' }
-									</span>
-									<span className="citeoryx-stat__label">
-										{ __( 'AI 可发现性', 'citeoryx' ) }
-									</span>
-								</div>
-							</div>
-						</CardBody>
-					</Card>
-
-					<Card>
-						<CardHeader>
-							{ __( '优化建议', 'citeoryx' ) }
-						</CardHeader>
-						<CardBody>
-							{ data.recommendations.length === 0 ? (
-								<p>
-									{ __(
-										'暂无优化建议，内容状态良好。',
-										'citeoryx'
-									) }
-								</p>
-							) : (
-								<ul className="citeoryx-recommendations">
-									{ data.recommendations.map(
-										( rec, index ) => (
-											<li key={ index }>
-												<div className="citeoryx-rec__header">
-													<span
-														className={ `citeoryx-badge--${ rec.priority }` }
-													>
-														{ rec.priority }
-													</span>
-													<strong>
-														{ rec.title }
-													</strong>
-													<span className="citeoryx-rec__category">
-														{ categoryLabel(
-															rec.category
-														) }
-													</span>
-												</div>
-												<p>{ rec.description }</p>
-												{ rec.issue_id && (
-													<Button
-														size="small"
-														href={ `post.php?post=${ data.content.object_id }&action=edit` }
-													>
-														{ rec.action }
-													</Button>
-												) }
-											</li>
-										)
-									) }
-								</ul>
-							) }
-						</CardBody>
-					</Card>
+					<div className={ workspaceClass }>
+						<OptimizerResults data={ data } />
+						{ canUseAi && (
+							<AiAnalysisPanel
+								key={ data.content.id }
+								canManageIntegrations={ canManageIntegrations }
+								contentId={ data.content.id }
+							/>
+						) }
+					</div>
 
 					{ canApplyChanges && data.editor?.available && (
 						<OptimizerRevisionPanel
-							key={ data.content.id }
+							key={ `${ data.content.id }-${ data.editor.base_content_hash }` }
+							canScan={ canScan }
 							contentId={ data.content.id }
 							editor={ data.editor }
+							onDataRefresh={ setData }
+							performance={ data.revision_performance }
 						/>
 					) }
 					{ canApplyChanges &&

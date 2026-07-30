@@ -278,6 +278,7 @@ class AiProviderTest extends WP_UnitTestCase {
 		$this->assertSame( 'Bearer responses-test-key', $requests[0]['args']['headers']['Authorization'] );
 		$this->assertSame( 'gpt-5.6-sol', $request['model'] );
 		$this->assertSame( 'input_text', $request['input'][0]['content'][0]['type'] );
+		$this->assertFalse( $request['stream'] );
 		$this->assertFalse( $request['store'] );
 	}
 
@@ -350,6 +351,51 @@ class AiProviderTest extends WP_UnitTestCase {
 		$this->assertFalse( $result['valid'] );
 		$this->assertStringContainsString( 'HTTP 404', $result['message'] );
 		$this->assertStringNotContainsString( 'private response body', $result['message'] );
+	}
+
+	/**
+	 * Provider JSON parsing should tolerate common fenced and prefaced output.
+	 *
+	 * @return void
+	 */
+	public function test_provider_parses_fenced_and_prefaced_json(): void {
+		OpenAiCompatibleProvider::save_api_key( 'json-wrapper-key' );
+		$responses = array(
+			"```json\n{\"suggestions\":[{\"priority\":\"high\",\"title\":\"Add evidence\"}]}\n```",
+			'Analysis result: {"score":84,"confidence":"high","strengths":["Clear scope"],"weaknesses":[],"summary":"Useful source"}',
+		);
+		$filter    = static function () use ( &$responses ) {
+			return array(
+				'headers'  => array(),
+				'body'     => wp_json_encode(
+					array(
+						'choices' => array(
+							array( 'message' => array( 'content' => array_shift( $responses ) ) ),
+						),
+					)
+				),
+				'response' => array(
+					'code'    => 200,
+					'message' => 'OK',
+				),
+				'cookies'  => array(),
+				'filename' => null,
+			);
+		};
+		add_filter( 'pre_http_request', $filter );
+
+		try {
+			$provider        = new OpenAiCompatibleProvider( 'https://example.com/v1/chat/completions' );
+			$suggestions     = $provider->suggest_improvements( 'Example content' );
+			$discoverability = $provider->analyze_discoverability( 'Example content' );
+		} finally {
+			remove_filter( 'pre_http_request', $filter );
+		}
+
+		$this->assertTrue( $suggestions['parsed'] );
+		$this->assertSame( 'Add evidence', $suggestions['suggestions'][0]['title'] );
+		$this->assertTrue( $discoverability['parsed'] );
+		$this->assertSame( 84, $discoverability['score'] );
 	}
 
 	/**

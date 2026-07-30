@@ -21,17 +21,23 @@ class Optimizer {
 	private IssueRepository $issue_repo;
 	private HealthScorer $health_scorer;
 	private AiReadinessScorer $aeo_scorer;
+	private InternalLinkSuggester $link_suggester;
+	private RevisionPerformanceMonitor $performance_monitor;
 
 	public function __construct(
 		ContentRepository $content_repo,
 		IssueRepository $issue_repo,
 		HealthScorer $health_scorer,
-		AiReadinessScorer $aeo_scorer
+		AiReadinessScorer $aeo_scorer,
+		InternalLinkSuggester $link_suggester,
+		RevisionPerformanceMonitor $performance_monitor
 	) {
-		$this->content_repo  = $content_repo;
-		$this->issue_repo    = $issue_repo;
-		$this->health_scorer = $health_scorer;
-		$this->aeo_scorer    = $aeo_scorer;
+		$this->content_repo   = $content_repo;
+		$this->issue_repo     = $issue_repo;
+		$this->health_scorer  = $health_scorer;
+		$this->aeo_scorer     = $aeo_scorer;
+		$this->link_suggester = $link_suggester;
+		$this->performance_monitor = $performance_monitor;
 	}
 
 	/**
@@ -103,13 +109,15 @@ class Optimizer {
 		}
 
 		return array(
-			'content'         => $item->to_array(),
-			'scores'          => array(
+			'content'          => $item->to_array(),
+			'scores'           => array(
 				'health' => $health,
 				'aeo'    => $aeo,
 			),
-			'issues'          => $issues,
-			'recommendations' => $recommendations,
+			'issues'           => $issues,
+			'recommendations'  => $recommendations,
+			'link_suggestions' => $this->link_suggester->suggest( $content_id ),
+			'revision_performance' => $this->performance_monitor->get_performance( $content_id ),
 		);
 	}
 
@@ -181,6 +189,69 @@ class Optimizer {
 			'description' => $issue->recommendation,
 			'action'      => $template['action'],
 			'issue_id'    => $issue->id,
+			'evidence'    => $this->format_evidence( $issue->evidence ),
 		);
+	}
+
+	/**
+	 * Convert known issue evidence into a bounded UI-safe list.
+	 *
+	 * @param array<string, mixed> $evidence Raw issue evidence.
+	 * @return array<int, array{label: string, value: string}>
+	 */
+	private function format_evidence( array $evidence ): array {
+		$labels = array(
+			'robots'            => __( 'Robots directives', 'citeoryx' ),
+			'canonical'         => __( 'Canonical URL', 'citeoryx' ),
+			'url'               => __( 'Current URL', 'citeoryx' ),
+			'days_since_update' => __( 'Days since update', 'citeoryx' ),
+			'word_count'        => __( 'Word count', 'citeoryx' ),
+			'headings'          => __( 'Heading structure', 'citeoryx' ),
+			'inbound_internal'  => __( 'Inbound internal links', 'citeoryx' ),
+			'broken_count'      => __( 'Broken external links', 'citeoryx' ),
+			'external_links'    => __( 'External links', 'citeoryx' ),
+		);
+		$items  = array();
+
+		foreach ( $evidence as $key => $value ) {
+			if ( ! is_string( $key ) || ! isset( $labels[ $key ] ) || 4 === count( $items ) ) {
+				continue;
+			}
+
+			$display_value = $this->format_evidence_value( $value );
+			if ( '' === $display_value ) {
+				continue;
+			}
+
+			$items[] = array(
+				'label' => $labels[ $key ],
+				'value' => $display_value,
+			);
+		}
+
+		return $items;
+	}
+
+	/**
+	 * Format a primitive or short structured evidence value for the admin UI.
+	 *
+	 * @param mixed $value Evidence value.
+	 * @return string
+	 */
+	private function format_evidence_value( $value ): string {
+		if ( is_bool( $value ) ) {
+			return $value ? __( 'Yes', 'citeoryx' ) : __( 'No', 'citeoryx' );
+		}
+
+		if ( is_scalar( $value ) ) {
+			return sanitize_text_field( (string) $value );
+		}
+
+		if ( ! is_array( $value ) ) {
+			return '';
+		}
+
+		$encoded = wp_json_encode( $value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		return is_string( $encoded ) ? sanitize_text_field( $encoded ) : '';
 	}
 }

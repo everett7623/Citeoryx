@@ -62,9 +62,36 @@ class OpenAiResponsesProvider extends AbstractAiProvider {
 					),
 				),
 				'max_output_tokens' => 1024,
+				'stream'            => false,
 				'store'             => false,
 			)
 		);
+
+		$text = $this->response_text( $body );
+		if ( '' !== $text ) {
+			return $text;
+		}
+
+		$error_message = $body['error']['message'] ?? $body['response']['error']['message'] ?? '';
+		if ( is_string( $error_message ) && '' !== trim( $error_message ) ) {
+			$this->set_last_request_error( mb_substr( $error_message, 0, 240 ) );
+		} elseif ( ! empty( $body ) ) {
+			$this->set_last_request_error( __( 'HTTP 200，但响应中没有可识别的文本；请确认上游使用 OpenAI Responses 协议。', 'citeoryx' ) );
+		}
+
+		return '';
+	}
+
+	/**
+	 * Extract text from official Responses payloads and common gateway envelopes.
+	 *
+	 * @param array<string, mixed> $body Decoded response body.
+	 * @return string
+	 */
+	private function response_text( array $body ): string {
+		if ( is_array( $body['response'] ?? null ) ) {
+			$body = $body['response'];
+		}
 
 		if ( isset( $body['output_text'] ) && is_string( $body['output_text'] ) ) {
 			return $body['output_text'];
@@ -77,9 +104,20 @@ class OpenAiResponsesProvider extends AbstractAiProvider {
 			}
 
 			foreach ( $item['content'] ?? array() as $content ) {
-				if ( is_array( $content ) && 'output_text' === ( $content['type'] ?? '' ) && is_string( $content['text'] ?? null ) ) {
+				if ( is_array( $content ) && in_array( $content['type'] ?? '', array( 'output_text', 'text' ), true ) && is_string( $content['text'] ?? null ) ) {
 					$text .= $content['text'];
 				}
+			}
+		}
+
+		if ( '' !== $text ) {
+			return $text;
+		}
+
+		foreach ( $body['choices'] ?? array() as $choice ) {
+			$content = $choice['message']['content'] ?? '';
+			if ( is_string( $content ) ) {
+				$text .= $content;
 			}
 		}
 

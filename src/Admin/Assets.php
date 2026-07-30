@@ -71,6 +71,7 @@ class Assets {
 					'canViewContent'        => current_user_can( Capabilities::VIEW_CONTENT ),
 					'canScan'               => current_user_can( Capabilities::RUN_SCANS ),
 					'canManageIssues'       => current_user_can( Capabilities::MANAGE_ISSUES ),
+					'canUseAi'              => current_user_can( Capabilities::USE_AI ),
 					'canManageIntegrations' => current_user_can( Capabilities::MANAGE_INTEGRATIONS ),
 					'canSettings'           => current_user_can( Capabilities::MANAGE_SETTINGS ),
 					'canExport'             => current_user_can( Capabilities::EXPORT_DATA ),

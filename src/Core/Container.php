@@ -8,16 +8,21 @@
 namespace Citeoryx\Core;
 
 use Citeoryx\Infrastructure\Database\SchemaManager;
+use Citeoryx\Infrastructure\Queue\AiAnalysisQueue;
+use Citeoryx\Infrastructure\Queue\AiAnalysisTaskStore;
 use Citeoryx\Infrastructure\Queue\Scheduler;
 use Citeoryx\Integrations\SeoPlugins\SeoPluginAdapterFactory;
 use Citeoryx\Application\Scan\ContentScanner;
 use Citeoryx\Application\Analyze\IssueEngine;
 use Citeoryx\Application\Analyze\HealthScorer;
+use Citeoryx\Application\Analyze\AiContentAnalyzer;
 use Citeoryx\Application\Analyze\AiReadinessScorer;
 use Citeoryx\Application\Analyze\ContentStatusClassifier;
 use Citeoryx\Application\Scan\LinkChecker;
 use Citeoryx\Application\Optimize\Optimizer;
+use Citeoryx\Application\Optimize\InternalLinkSuggester;
 use Citeoryx\Application\Optimize\RevisionDraftService;
+use Citeoryx\Application\Optimize\RevisionPerformanceMonitor;
 use Citeoryx\Domain\Content\ContentRepository;
 use Citeoryx\Domain\Issue\IssueRepository;
 use Citeoryx\Domain\Link\LinkRepository;
@@ -37,6 +42,7 @@ use Citeoryx\Application\Planning\PlanningCalendar;
 use Citeoryx\Integrations\SearchConsole\BingWebmasterTools;
 use Citeoryx\Integrations\SearchConsole\GoogleOAuth;
 use Citeoryx\Integrations\SearchConsole\GoogleSearchConsole;
+use Citeoryx\Integrations\AiProviders\AiProviderFactory;
 
 /**
  * Lightweight service container.
@@ -100,8 +106,17 @@ class Container {
 					$this->get( ScanRunRepository::class ),
 					$this->get( SearchPerformanceImporter::class )
 				);
+			case AiAnalysisQueue::class:
+				return new AiAnalysisQueue(
+					$this->get( AiAnalysisTaskStore::class ),
+					$this->get( AiContentAnalyzer::class )
+				);
+			case AiAnalysisTaskStore::class:
+				return new AiAnalysisTaskStore( $this->get( Transients::class ) );
 			case SeoPluginAdapterFactory::class:
 				return new SeoPluginAdapterFactory();
+			case AiProviderFactory::class:
+				return new AiProviderFactory();
 			case ContentScanner::class:
 				return new ContentScanner(
 					$this->get( ContentRepository::class ),
@@ -121,6 +136,12 @@ class Container {
 				return new HealthScorer();
 			case AiReadinessScorer::class:
 				return new AiReadinessScorer();
+			case AiContentAnalyzer::class:
+				return new AiContentAnalyzer(
+					$this->get( ContentRepository::class ),
+					$this->get( IssueRepository::class ),
+					$this->get( AiProviderFactory::class )
+				);
 			case ContentStatusClassifier::class:
 				return new ContentStatusClassifier();
 			case Optimizer::class:
@@ -128,10 +149,22 @@ class Container {
 					$this->get( ContentRepository::class ),
 					$this->get( IssueRepository::class ),
 					$this->get( HealthScorer::class ),
-					$this->get( AiReadinessScorer::class )
+					$this->get( AiReadinessScorer::class ),
+					$this->get( InternalLinkSuggester::class ),
+					$this->get( RevisionPerformanceMonitor::class )
+				);
+			case InternalLinkSuggester::class:
+				return new InternalLinkSuggester(
+					$this->get( ContentRepository::class ),
+					$this->get( LinkRepository::class )
 				);
 			case RevisionDraftService::class:
 				return new RevisionDraftService( $this->get( ContentRepository::class ) );
+			case RevisionPerformanceMonitor::class:
+				return new RevisionPerformanceMonitor(
+					$this->get( RevisionDraftService::class ),
+					$this->get( MetricsRepository::class )
+				);
 			case ContentRepository::class:
 				return new ContentRepository();
 			case IssueRepository::class:

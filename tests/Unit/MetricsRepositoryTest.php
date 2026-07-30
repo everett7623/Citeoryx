@@ -166,4 +166,62 @@ class MetricsRepositoryTest extends WP_UnitTestCase {
 		$this->assertSame( 15.0, $aggregate['history'][0]['clicks'] );
 		$this->assertEqualsWithDelta( 2.666, $aggregate['history'][0]['position_avg'], 0.001 );
 	}
+
+	/**
+	 * Date-range aggregation must retain each provider as an independent result.
+	 *
+	 * @return void
+	 */
+	public function test_date_range_aggregate_keeps_provider_boundaries(): void {
+		$this->repository->save(
+			7,
+			'2026-07-01',
+			'google_search_console',
+			array(
+				'impressions'  => 100,
+				'clicks'       => 10,
+				'position_avg' => 2,
+			)
+		);
+		$this->repository->save(
+			7,
+			'2026-07-02',
+			'google_search_console',
+			array(
+				'impressions'  => 100,
+				'clicks'       => 20,
+				'position_avg' => 4,
+			)
+		);
+		$this->repository->save(
+			7,
+			'2026-07-02',
+			'bing_webmaster_tools',
+			array(
+				'impressions'  => 50,
+				'clicks'       => 5,
+				'position_avg' => 8,
+			)
+		);
+		$this->repository->save(
+			7,
+			'2026-07-03',
+			'google_search_console',
+			array(
+				'impressions'  => 999,
+				'clicks'       => 999,
+				'position_avg' => 1,
+			)
+		);
+
+		$aggregate = $this->repository->aggregate_by_source_between( 7, '2026-07-01', '2026-07-02' );
+
+		$this->assertSame( array( 'bing_webmaster_tools', 'google_search_console' ), array_keys( $aggregate ) );
+		$this->assertSame( 200.0, $aggregate['google_search_console']['impressions'] );
+		$this->assertSame( 30.0, $aggregate['google_search_console']['clicks'] );
+		$this->assertSame( 2, $aggregate['google_search_console']['days_with_data'] );
+		$this->assertSame( 3.0, $aggregate['google_search_console']['position_avg'] );
+		$this->assertSame( 50.0, $aggregate['bing_webmaster_tools']['impressions'] );
+		$this->assertSame( 8.0, $aggregate['bing_webmaster_tools']['position_avg'] );
+	}
 }

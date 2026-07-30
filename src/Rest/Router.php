@@ -16,6 +16,7 @@ use Citeoryx\Rest\Controllers\SettingsController;
 use Citeoryx\Rest\Controllers\OptimizerController;
 use Citeoryx\Rest\Controllers\SearchConsoleController;
 use Citeoryx\Rest\Controllers\AiController;
+use Citeoryx\Rest\Controllers\AiAnalysisController;
 use Citeoryx\Rest\Controllers\BingController;
 use Citeoryx\Rest\Controllers\NotificationsController;
 use Citeoryx\Rest\Controllers\ReportsController;
@@ -49,6 +50,7 @@ class Router {
 		( new SearchConsoleController( $this->container ) )->register( $namespace );
 		( new BingController( $this->container ) )->register( $namespace );
 		( new AiController( $this->container ) )->register( $namespace );
+		( new AiAnalysisController( $this->container ) )->register( $namespace );
 		( new NotificationsController( $this->container ) )->register( $namespace );
 		( new ReportsController( $this->container ) )->register( $namespace );
 		( new PlanningController( $this->container ) )->register( $namespace );

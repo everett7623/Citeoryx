@@ -149,6 +149,26 @@ class LinkRepository {
 	}
 
 	/**
+	 * Get URL hashes already linked from a content item.
+	 *
+	 * @param int $content_id Source content ID.
+	 * @return array<string>
+	 */
+	public function find_internal_target_hashes( int $content_id ): array {
+		global $wpdb;
+
+		$hashes = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				'SELECT target_url_hash FROM %i WHERE source_content_id = %d AND is_internal = 1',
+				$this->table(),
+				$content_id
+			)
+		);
+
+		return array_values( array_filter( array_map( 'strval', $hashes ?: array() ) ) );
+	}
+
+	/**
 	 * Get orphan content IDs.
 	 *
 	 * @return array<int>

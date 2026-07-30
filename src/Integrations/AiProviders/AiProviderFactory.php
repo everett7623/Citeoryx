@@ -14,6 +14,11 @@ class AiProviderFactory {
 
 	public const OPTION_PROVIDER = 'citeoryx_ai_provider';
 	public const OPTION_SETTINGS = 'citeoryx_ai_provider_settings';
+	public const OPTION_ENABLED  = 'citeoryx_ai_enabled';
+	public const OPTION_TIMEOUT  = 'citeoryx_ai_timeout';
+	public const DEFAULT_TIMEOUT = 60;
+	public const MIN_TIMEOUT     = 10;
+	public const MAX_TIMEOUT     = 180;
 
 	/**
 	 * Supported provider keys.
@@ -36,6 +41,19 @@ class AiProviderFactory {
 	 * @return AiProviderInterface
 	 */
 	public function make(): AiProviderInterface {
+		if ( ! self::is_enabled() ) {
+			return new NullAiProvider();
+		}
+
+		return $this->make_selected();
+	}
+
+	/**
+	 * Get the selected provider even when AI analysis is disabled.
+	 *
+	 * @return AiProviderInterface
+	 */
+	public function make_selected(): AiProviderInterface {
 		$provider = (string) get_option( self::OPTION_PROVIDER, 'none' );
 		$settings = self::get_provider_settings( $provider );
 		$model    = $settings['model'] ?: self::default_model( $provider );
@@ -62,6 +80,46 @@ class AiProviderFactory {
 			default:
 				return new NullAiProvider();
 		}
+	}
+
+	/**
+	 * Check whether AI analysis is enabled without breaking existing installs.
+	 *
+	 * @return bool
+	 */
+	public static function is_enabled(): bool {
+		$stored = get_option( self::OPTION_ENABLED, null );
+		if ( null === $stored ) {
+			return 'none' !== (string) get_option( self::OPTION_PROVIDER, 'none' );
+		}
+
+		return (bool) $stored;
+	}
+
+	/**
+	 * Get the bounded remote request timeout.
+	 *
+	 * @return int
+	 */
+	public static function get_timeout(): int {
+		$timeout = absint( get_option( self::OPTION_TIMEOUT, self::DEFAULT_TIMEOUT ) );
+		return max( self::MIN_TIMEOUT, min( self::MAX_TIMEOUT, $timeout ) );
+	}
+
+	/**
+	 * Save analysis runtime settings.
+	 *
+	 * @param bool $enabled Whether AI analysis is enabled.
+	 * @param int  $timeout Remote request timeout in seconds.
+	 * @return void
+	 */
+	public static function save_runtime_settings( bool $enabled, int $timeout ): void {
+		update_option( self::OPTION_ENABLED, $enabled, false );
+		update_option(
+			self::OPTION_TIMEOUT,
+			max( self::MIN_TIMEOUT, min( self::MAX_TIMEOUT, $timeout ) ),
+			false
+		);
 	}
 
 	/**

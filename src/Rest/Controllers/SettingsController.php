@@ -11,6 +11,7 @@ use Citeoryx\Application\Settings\SiteProfileSchema;
 use Citeoryx\Application\Notifications\WeeklyDigest;
 use Citeoryx\Application\Notifications\CriticalIssueNotifier;
 use Citeoryx\Core\Capabilities;
+use Citeoryx\Infrastructure\Logging\Logger;
 use WP_REST_Request;
 
 /**
@@ -123,9 +124,7 @@ class SettingsController extends BaseController {
 		try {
 			return $this->container->get( WeeklyDigest::class )->get_status();
 		} catch ( \Throwable $error ) {
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-				error_log( '[Citeoryx] Unable to read notification status: ' . $error->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			}
+			Logger::error( 'Unable to read notification status', array( 'error' => $error->getMessage() ) );
 
 			return array(
 				'status'       => 'never',
@@ -145,9 +144,7 @@ class SettingsController extends BaseController {
 		try {
 			return $this->container->get( CriticalIssueNotifier::class )->get_status();
 		} catch ( \Throwable $error ) {
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-				error_log( '[Citeoryx] Unable to read critical alert status: ' . $error->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			}
+			Logger::error( 'Unable to read critical alert status', array( 'error' => $error->getMessage() ) );
 
 			return array(
 				'status'       => 'never',

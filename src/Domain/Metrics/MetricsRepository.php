@@ -217,6 +217,45 @@ class MetricsRepository {
 		return $this->normalize_aggregate( is_array( $row ) ? $row : array() );
 	}
 
+	/**
+	 * Aggregate a content item's performance over a fixed date range, separately
+	 * for each imported search provider.
+	 *
+	 * @param int    $content_id Content ID.
+	 * @param string $start_date Inclusive ISO date.
+	 * @param string $end_date Inclusive ISO date.
+	 * @return array<string, array<string, float|int|string|null>>
+	 */
+	public function aggregate_by_source_between( int $content_id, string $start_date, string $end_date ): array {
+		global $wpdb;
+
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				'SELECT source, SUM(impressions) AS impressions, SUM(clicks) AS clicks, SUM(position_avg * impressions) AS position_weight, COUNT(DISTINCT metric_date) AS days_with_data, MIN(metric_date) AS first_metric_date, MAX(metric_date) AS last_metric_date FROM %i WHERE content_id = %d AND metric_date BETWEEN %s AND %s GROUP BY source ORDER BY source ASC',
+				$this->table(),
+				$content_id,
+				$start_date,
+				$end_date
+			),
+			ARRAY_A
+		);
+
+		$aggregates = array();
+		foreach ( $rows ?: array() as $row ) {
+			$aggregate                 = $this->normalize_aggregate( $row );
+			$impressions               = (float) ( $row['impressions'] ?? 0 );
+			$aggregate['position_avg'] = $impressions > 0
+				? (float) ( $row['position_weight'] ?? 0 ) / $impressions
+				: null;
+			$aggregate['days_with_data']  = (int) ( $row['days_with_data'] ?? 0 );
+			$aggregate['first_metric_date'] = $row['first_metric_date'] ?: null;
+			$aggregate['last_metric_date']  = $row['last_metric_date'] ?: null;
+			$aggregates[ (string) $row['source'] ] = $aggregate;
+		}
+
+		return $aggregates;
+	}
+
 	public function aggregate_site( int $days = 28 ): array {
 		global $wpdb;
 

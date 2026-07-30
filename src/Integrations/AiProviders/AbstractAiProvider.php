@@ -133,11 +133,12 @@ abstract class AbstractAiProvider implements AiProviderInterface {
 		);
 
 		$result = $this->chat( $prompt );
-		$parsed = json_decode( $result, true );
+		$parsed = $this->parse_json_response( $result );
 
 		return array(
 			'configured'  => true,
-			'suggestions' => is_array( $parsed ) ? ( $parsed['suggestions'] ?? array() ) : array(),
+			'parsed'      => null !== $parsed,
+			'suggestions' => null !== $parsed ? ( $parsed['suggestions'] ?? array() ) : array(),
 			'raw'         => $result,
 		);
 	}
@@ -162,18 +163,45 @@ abstract class AbstractAiProvider implements AiProviderInterface {
 			mb_substr( wp_strip_all_tags( $content ), 0, 2000 )
 		);
 
-		$result = $this->chat( $prompt );
-		$parsed = json_decode( $result, true );
-		$parsed = is_array( $parsed ) ? $parsed : array();
+		$result    = $this->chat( $prompt );
+		$parsed    = $this->parse_json_response( $result );
+		$parsed_ok = null !== $parsed;
+		$parsed    = $parsed_ok ? $parsed : array();
 
 		return array(
 			'configured' => true,
+			'parsed'     => $parsed_ok,
 			'score'      => $parsed['score'] ?? 0,
 			'confidence' => $parsed['confidence'] ?? 'low',
 			'strengths'  => $parsed['strengths'] ?? array(),
 			'weaknesses' => $parsed['weaknesses'] ?? array(),
 			'summary'    => $parsed['summary'] ?? '',
 		);
+	}
+
+	/**
+	 * Parse plain, fenced, or briefly prefaced JSON object output.
+	 *
+	 * @param string $response Provider text response.
+	 * @return array<string, mixed>|null
+	 */
+	private function parse_json_response( string $response ): ?array {
+		$text = trim( $response );
+		if ( preg_match( '/^```(?:json)?\s*(.*?)\s*```$/is', $text, $matches ) ) {
+			$text = trim( $matches[1] );
+		}
+
+		$parsed = json_decode( $text, true );
+		if ( is_array( $parsed ) ) {
+			return $parsed;
+		}
+
+		if ( preg_match( '/\{.*\}/s', $text, $matches ) ) {
+			$parsed = json_decode( $matches[0], true );
+			return is_array( $parsed ) ? $parsed : null;
+		}
+
+		return null;
 	}
 
 	/**
@@ -192,6 +220,16 @@ abstract class AbstractAiProvider implements AiProviderInterface {
 	 */
 	protected function get_model(): string {
 		return $this->model;
+	}
+
+	/**
+	 * Store a safe request error for connection-test feedback.
+	 *
+	 * @param string $message Safe error detail.
+	 * @return void
+	 */
+	protected function set_last_request_error( string $message ): void {
+		$this->last_request_error = sanitize_text_field( $message );
 	}
 
 	/**
@@ -217,7 +255,7 @@ abstract class AbstractAiProvider implements AiProviderInterface {
 			array(
 				'headers' => $headers,
 				'body'    => wp_json_encode( $body ),
-				'timeout' => 30,
+				'timeout' => AiProviderFactory::get_timeout(),
 			)
 		);
 
@@ -228,11 +266,114 @@ abstract class AbstractAiProvider implements AiProviderInterface {
 
 		$http_code = wp_remote_retrieve_response_code( $response );
 		if ( 200 !== $http_code ) {
-			$this->last_request_error = sprintf( 'HTTP %d', $http_code );
+			$detail                   = $this->response_error_message( wp_remote_retrieve_body( $response ) );
+			$this->last_request_error = $detail
+				? sprintf( 'HTTP %d: %s', $http_code, $detail )
+				: sprintf( 'HTTP %d', $http_code );
 			return array();
 		}
 
-		$decoded = json_decode( wp_remote_retrieve_body( $response ), true );
-		return is_array( $decoded ) ? $decoded : array();
+		$response_body = trim( wp_remote_retrieve_body( $response ) );
+		if ( '' === $response_body ) {
+			$this->last_request_error = __( 'HTTP 200，但响应为空。', 'citeoryx' );
+			return array();
+		}
+
+		$decoded = json_decode( $response_body, true );
+		if ( is_array( $decoded ) ) {
+			return $decoded;
+		}
+
+		$sse_response = $this->decode_responses_sse( $response_body );
+		if ( null !== $sse_response ) {
+			return $sse_response;
+		}
+
+		$content_type = strtolower( (string) wp_remote_retrieve_header( $response, 'content-type' ) );
+		if ( str_contains( $content_type, 'text/html' ) || preg_match( '/^\s*<!doctype\s+html|^\s*<html\b/i', $response_body ) ) {
+			$this->last_request_error = __( 'HTTP 200，但返回了 HTML 页面；该地址可能是控制面板而不是 API 请求地址。', 'citeoryx' );
+		} else {
+			$this->last_request_error = __( 'HTTP 200，但响应不是有效 JSON。', 'citeoryx' );
+		}
+
+		return array();
+	}
+
+	/**
+	 * Read a provider error message without exposing arbitrary response content.
+	 *
+	 * @param string $response_body Raw response body.
+	 * @return string
+	 */
+	private function response_error_message( string $response_body ): string {
+		$decoded = json_decode( $response_body, true );
+		if ( ! is_array( $decoded ) ) {
+			return '';
+		}
+
+		$message = $decoded['error']['message'] ?? $decoded['message'] ?? '';
+		if ( ! is_string( $message ) ) {
+			return '';
+		}
+
+		return mb_substr( sanitize_text_field( $message ), 0, 240 );
+	}
+
+	/**
+	 * Normalize Responses API server-sent events into a non-streaming response.
+	 *
+	 * @param string $response_body Raw SSE response body.
+	 * @return array<string, mixed>|null
+	 */
+	private function decode_responses_sse( string $response_body ): ?array {
+		$found_event = false;
+		$output_text = '';
+		$final       = null;
+		$failure     = '';
+
+		foreach ( preg_split( '/\r?\n/', $response_body ) ?: array() as $line ) {
+			if ( ! str_starts_with( $line, 'data:' ) ) {
+				continue;
+			}
+
+			$payload = trim( substr( $line, 5 ) );
+			if ( '' === $payload || '[DONE]' === $payload ) {
+				continue;
+			}
+
+			$event = json_decode( $payload, true );
+			if ( ! is_array( $event ) ) {
+				continue;
+			}
+
+			$found_event = true;
+			$event_type  = $event['type'] ?? '';
+			if ( in_array( $event_type, array( 'response.completed', 'response.done' ), true ) && is_array( $event['response'] ?? null ) ) {
+				$final = $event['response'];
+			}
+			if ( 'response.output_text.delta' === $event_type && is_string( $event['delta'] ?? null ) ) {
+				$output_text .= $event['delta'];
+			}
+			if ( in_array( $event_type, array( 'error', 'response.failed', 'response.incomplete' ), true ) ) {
+				$failure = $event['error']['message'] ?? $event['response']['error']['message'] ?? '';
+			}
+		}
+
+		if ( is_array( $final ) ) {
+			return $final;
+		}
+		if ( '' !== $output_text ) {
+			return array( 'output_text' => $output_text );
+		}
+		if ( '' !== $failure && is_string( $failure ) ) {
+			$this->last_request_error = mb_substr( sanitize_text_field( $failure ), 0, 240 );
+			return array();
+		}
+		if ( $found_event ) {
+			$this->last_request_error = __( 'HTTP 200，但 SSE 响应中没有可识别的模型文本。', 'citeoryx' );
+			return array();
+		}
+
+		return null;
 	}
 }

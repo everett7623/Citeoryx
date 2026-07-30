@@ -1,0 +1,66 @@
+# Cursor Rules for Citeoryx
+
+## 项目类型
+WordPress Plugin - 内容健康度监控与 AI 可发现性引擎
+
+## 技术栈
+- PHP 8.0+ (WordPress Coding Standards)
+- React 18 + WordPress Components
+- WordPress 6.6+
+- PSR-4 架构，DDD 三层设计
+
+## 核心约束
+
+### 1. 架构模式
+- **REST API 优先**：所有后台功能通过 REST API 实现，路径 `/wp-json/citeoryx/v1/*`
+- **异步任务模式**：长时间操作（扫描、AI 分析）通过 Action Scheduler 后台执行，REST 只创建任务并立即返回 task_id
+- **Repository 模式**：所有数据库操作通过 Repository 隔离（`src/Domain/*/`）
+- **Provider Adapter**：外部服务（AI、GSC、Bing）通过 Adapter 隔离（`src/Integrations/*/`）
+
+### 2. SEO 插件兼容性
+- **只读取、不输出**：读取 Rank Math / Yoast / AIOSEO 数据，但不输出前台 SEO 标签
+- 适配器位于 `src/Integrations/SeoPlugins/`
+
+### 3. 命名规范
+- PHP 类/接口/常量：`CX_` 前缀
+- 函数/Hook/Option：`citeoryx_` 前缀
+- 数据库表：`{$wpdb->prefix}cx_` 前缀
+- 命名空间：`Citeoryx\`
+- REST 命名空间：`/citeoryx/v1/`
+- 文本域：`citeoryx`
+
+### 4. 安全约束
+- API Key 优先读取 `wp-config.php` 常量 > 环境变量 > 数据库加密存储
+- 外部请求使用 `wp_safe_remote_*()`
+- 数据库操作使用 `$wpdb->prepare()` Prepared Statements
+- REST API 使用 WordPress Nonce + 自定义 Capability
+
+### 5. 代码规范
+- PHP: WordPress Coding Standards (WPCS)
+- JavaScript: WordPress Scripts ESLint 配置
+- 所有 Repository 方法必须类型声明
+- Controller 必须声明 `get_endpoint_args_for_item_schema()`
+
+## 开发命令
+
+### 前端
+```bash
+npm run start    # 开发模式
+npm run build    # 生产构建
+npm test         # Jest 测试
+npm run lint:js  # JavaScript 检查
+```
+
+### PHP
+```bash
+composer test      # PHPUnit 测试
+composer phpcs     # 代码规范检查
+composer phpcbf    # 自动修复规范
+composer phpcompat # PHP 8.0+ 兼容性检查
+```
+
+## 重要文档
+- `ARCHITECTURE.md` - 详细架构设计
+- `API.md` - REST API 完整参考
+- `DATABASE.md` - 数据库表结构
+- `CLAUDE.md` - Claude Code 开发指南

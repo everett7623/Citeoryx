@@ -7,6 +7,7 @@
 
 namespace Citeoryx\Application\Optimize;
 
+use Citeoryx\Domain\Content\ContentItem;
 use Citeoryx\Domain\Content\ContentRepository;
 use WP_Error;
 use WP_Post;
@@ -19,6 +20,8 @@ class RevisionDraftService {
 	private const PROPOSAL_HASH_META = '_citeoryx_proposal_hash';
 	private const BASE_HASH_META     = '_citeoryx_base_content_hash';
 	private const SUMMARY_META       = '_citeoryx_change_summary';
+	private const PUBLISHED_AT_META  = '_citeoryx_proposal_published_at';
+	private const VERIFIED_AT_META   = '_citeoryx_proposal_verified_at';
 
 	private ContentRepository $content_repo;
 
@@ -52,7 +55,109 @@ class RevisionDraftService {
 			'revisions_enabled' => $revisions_enabled,
 			'message'           => $revisions_enabled ? '' : __( '该内容类型或站点配置已禁用 WordPress Revision。', 'citeoryx' ),
 			'edit_url'          => get_edit_post_link( $post->ID, 'raw' ) ?: '',
+			'workflow'          => $this->get_workflow_status( $content_id ),
 		);
+	}
+
+	/**
+	 * Get the latest Citeoryx proposal lifecycle for a content item.
+	 *
+	 * @param int $content_id Citeoryx content ID.
+	 * @return array<string, mixed>
+	 */
+	public function get_workflow_status( int $content_id ): array {
+		$item = $this->content_repo->find( $content_id );
+		if ( ! $item || 'post' !== $item->object_type || ! $item->object_id ) {
+			return $this->empty_workflow();
+		}
+
+		$post = get_post( $item->object_id );
+		if ( ! $post || 'revision' === $post->post_type ) {
+			return $this->empty_workflow();
+		}
+
+		$revision = $this->find_latest_proposal( $post->ID );
+		if ( ! $revision ) {
+			return $this->empty_workflow( $post->post_status, $item->last_scanned_at );
+		}
+
+		$proposal_hash = (string) get_metadata( 'post', $revision->ID, self::PROPOSAL_HASH_META, true );
+		$base_hash     = (string) get_metadata( 'post', $revision->ID, self::BASE_HASH_META, true );
+		$published_at  = sanitize_text_field( (string) get_metadata( 'post', $revision->ID, self::PUBLISHED_AT_META, true ) );
+		$verified_at   = sanitize_text_field( (string) get_metadata( 'post', $revision->ID, self::VERIFIED_AT_META, true ) );
+		$current_hash  = $this->fields_hash( $post->post_title, $post->post_content, $post->post_excerpt );
+
+		$matches_base     = 64 === strlen( $base_hash ) && hash_equals( $base_hash, $current_hash );
+		$matches_proposal = 64 === strlen( $proposal_hash ) && hash_equals( $proposal_hash, $current_hash );
+		$scan_current      = $matches_proposal && $this->scan_matches_post( $item, $post );
+
+		if ( $matches_base ) {
+			$state = 'awaiting_review';
+		} elseif ( $matches_proposal && 'publish' !== $post->post_status ) {
+			$state = 'applied_unpublished';
+		} elseif ( $matches_proposal && ! $scan_current ) {
+			$state = 'published_pending_scan';
+		} elseif ( $matches_proposal ) {
+			$state = 'verified';
+		} else {
+			$state = 'superseded';
+		}
+
+		return array(
+			'state'           => $state,
+			'revision'        => $this->format_revision( $revision, false ),
+			'summary'         => sanitize_text_field( (string) get_metadata( 'post', $revision->ID, self::SUMMARY_META, true ) ),
+			'post_status'     => $post->post_status,
+			'published'       => $matches_proposal && 'publish' === $post->post_status,
+			'verified'        => 'verified' === $state,
+			'can_verify'      => 'published_pending_scan' === $state,
+			'last_scanned_at' => $item->last_scanned_at ?: null,
+			'published_at'    => $published_at ?: null,
+			'verified_at'     => $verified_at ?: null,
+		);
+	}
+
+	/**
+	 * Persist the immutable observation points for a successfully verified proposal.
+	 *
+	 * This is deliberately called by the explicit post-publish verification scan, so
+	 * performance measurement stays tied to an editor-confirmed deployed revision.
+	 *
+	 * @param int $content_id Citeoryx content ID.
+	 * @return void
+	 */
+	public function record_verified_scan( int $content_id ): void {
+		$item = $this->content_repo->find( $content_id );
+		if ( ! $item || 'post' !== $item->object_type || ! $item->object_id ) {
+			return;
+		}
+
+		$post = get_post( $item->object_id );
+		if ( ! $post || 'publish' !== $post->post_status ) {
+			return;
+		}
+
+		$revision = $this->find_latest_proposal( $post->ID );
+		if ( ! $revision ) {
+			return;
+		}
+
+		$proposal_hash = (string) get_metadata( 'post', $revision->ID, self::PROPOSAL_HASH_META, true );
+		$current_hash  = $this->fields_hash( $post->post_title, $post->post_content, $post->post_excerpt );
+		if (
+			64 !== strlen( $proposal_hash ) ||
+			! hash_equals( $proposal_hash, $current_hash ) ||
+			! $this->scan_matches_post( $item, $post )
+		) {
+			return;
+		}
+
+		if ( ! get_metadata( 'post', $revision->ID, self::PUBLISHED_AT_META, true ) ) {
+			add_metadata( 'post', $revision->ID, self::PUBLISHED_AT_META, $post->post_modified, true );
+		}
+		if ( ! get_metadata( 'post', $revision->ID, self::VERIFIED_AT_META, true ) ) {
+			add_metadata( 'post', $revision->ID, self::VERIFIED_AT_META, $item->last_scanned_at, true );
+		}
 	}
 
 	/**
@@ -187,6 +292,75 @@ class RevisionDraftService {
 			)
 		);
 		return $revisions ? reset( $revisions ) : null;
+	}
+
+	/**
+	 * Find the latest revision created through the Citeoryx proposal flow.
+	 *
+	 * @param int $post_id Parent post ID.
+	 * @return WP_Post|null
+	 */
+	private function find_latest_proposal( int $post_id ): ?WP_Post {
+		$revisions = get_posts(
+			array(
+				'post_type'      => 'revision',
+				'post_status'    => 'inherit',
+				'post_parent'    => $post_id,
+				'posts_per_page' => 1,
+				'order'          => 'DESC',
+				'orderby'        => 'ID',
+				'meta_query'     => array(
+					array(
+						'key'     => self::PROPOSAL_HASH_META,
+						'compare' => 'EXISTS',
+					),
+				),
+			)
+		);
+
+		return $revisions ? reset( $revisions ) : null;
+	}
+
+	/**
+	 * Confirm the indexed content represents the current published post.
+	 *
+	 * @param ContentItem $item Indexed content item.
+	 * @param WP_Post $post Parent post.
+	 * @return bool
+	 */
+	private function scan_matches_post( ContentItem $item, WP_Post $post ): bool {
+		$expected_hash = hash( 'sha256', $post->post_content );
+		if (
+			! $item->content_hash ||
+			! hash_equals( $expected_hash, (string) $item->content_hash ) ||
+			! $item->last_scanned_at
+		) {
+			return false;
+		}
+
+		return ! $post->post_modified || $item->last_scanned_at >= $post->post_modified;
+	}
+
+	/**
+	 * Build the stable no-proposal workflow response.
+	 *
+	 * @param string      $post_status     Parent post status.
+	 * @param string|null $last_scanned_at Last indexed scan time.
+	 * @return array<string, mixed>
+	 */
+	private function empty_workflow( string $post_status = '', ?string $last_scanned_at = null ): array {
+		return array(
+			'state'           => 'idle',
+			'revision'        => null,
+			'summary'         => '',
+			'post_status'     => $post_status,
+			'published'       => false,
+			'verified'        => false,
+			'can_verify'      => false,
+			'last_scanned_at' => $last_scanned_at,
+			'published_at'    => null,
+			'verified_at'     => null,
+		);
 	}
 
 	private function fields_hash( string $title, string $content, string $excerpt ): string {

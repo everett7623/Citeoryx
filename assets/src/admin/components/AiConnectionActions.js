@@ -11,14 +11,6 @@ const AiConnectionActions = ( {
 } ) => (
 	<>
 		<div className="citeoryx-ai-settings__actions">
-			<Button
-				variant="primary"
-				onClick={ onSave }
-				disabled={ saving || testing }
-				isBusy={ saving }
-			>
-				{ __( '保存 AI 设置', 'citeoryx' ) }
-			</Button>
 			{ showTest && (
 				<Button
 					variant="secondary"
@@ -29,6 +21,14 @@ const AiConnectionActions = ( {
 					{ __( '测试连接', 'citeoryx' ) }
 				</Button>
 			) }
+			<Button
+				variant="primary"
+				onClick={ onSave }
+				disabled={ saving || testing }
+				isBusy={ saving }
+			>
+				{ __( '保存 AI 设置', 'citeoryx' ) }
+			</Button>
 		</div>
 		{ showTest && ! canTest && (
 			<p className="citeoryx-ai-settings__test-hint">

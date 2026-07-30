@@ -50,6 +50,7 @@ class RevisionDraftServiceTest extends WP_UnitTestCase {
 
 		$this->assertIsArray( $result );
 		$this->assertTrue( $snapshot['available'] );
+		$this->assertSame( 'idle', $snapshot['workflow']['state'] );
 		$this->assertSame( $this->post_hash( $original ), $snapshot['base_content_hash'] );
 		$this->assertTrue( $result['created'] );
 		$revision = wp_get_post_revision( $result['id'] );
@@ -64,6 +65,55 @@ class RevisionDraftServiceTest extends WP_UnitTestCase {
 			$this->post_hash( $original ),
 			get_metadata( 'post', $revision->ID, '_citeoryx_base_content_hash', true )
 		);
+		$this->assertSame( 'awaiting_review', $this->service->get_workflow_status( $item->id )['state'] );
+	}
+
+	public function test_workflow_tracks_application_publication_and_scan_verification(): void {
+		$item     = $this->create_content();
+		$post     = get_post( $item->object_id );
+		$result   = $this->service->create( $item->id, $this->proposal( $post, '<p>Verified body</p>' ) );
+		$revision = wp_get_post_revision( $result['id'] );
+
+		wp_update_post(
+			array(
+				'ID'           => $post->ID,
+				'post_status'  => 'draft',
+				'post_title'   => $revision->post_title,
+				'post_content' => $revision->post_content,
+				'post_excerpt' => $revision->post_excerpt,
+			)
+		);
+		$this->assertSame( 'applied_unpublished', $this->service->get_workflow_status( $item->id )['state'] );
+
+		wp_update_post(
+			array(
+				'ID'          => $post->ID,
+				'post_status' => 'publish',
+			)
+		);
+		$pending = $this->service->get_workflow_status( $item->id );
+		$this->assertSame( 'published_pending_scan', $pending['state'] );
+		$this->assertTrue( $pending['can_verify'] );
+
+		$current                   = get_post( $post->ID );
+		$item->content_hash        = hash( 'sha256', $current->post_content );
+		$item->last_scanned_at     = current_time( 'mysql' );
+		$this->content_repo->save( $item );
+		$verified = $this->service->get_workflow_status( $item->id );
+
+		$this->assertSame( 'verified', $verified['state'] );
+		$this->assertTrue( $verified['published'] );
+		$this->assertTrue( $verified['verified'] );
+
+		wp_update_post(
+			array(
+				'ID'         => $post->ID,
+				'post_title' => 'Independent follow-up edit',
+			)
+		);
+		$superseded = $this->service->get_workflow_status( $item->id );
+		$this->assertSame( 'superseded', $superseded['state'] );
+		$this->assertFalse( $superseded['verified'] );
 	}
 
 	public function test_duplicate_proposal_returns_existing_revision(): void {
@@ -112,13 +162,15 @@ class RevisionDraftServiceTest extends WP_UnitTestCase {
 		);
 		$controller = new OptimizerController( new Container() );
 
-		$response = $controller->apply_revision( $request );
-		$data     = $response->get_data()['data']['revision'];
-		$revision = wp_get_post_revision( $data['id'] );
+		$response      = $controller->apply_revision( $request );
+		$response_data = $response->get_data()['data'];
+		$data          = $response_data['revision'];
+		$revision      = wp_get_post_revision( $data['id'] );
 
 		$this->assertSame( 201, $response->get_status() );
 		$this->assertSame( $post->ID, $data['parent_id'] );
 		$this->assertTrue( $data['created'] );
+		$this->assertSame( 'awaiting_review', $response_data['workflow']['state'] );
 		$this->assertStringContainsString( '<strong>Allowed</strong>', $revision->post_content );
 		$this->assertStringNotContainsString( '<script', $revision->post_content );
 		$this->assertSame( $post->post_content, get_post( $post->ID )->post_content );

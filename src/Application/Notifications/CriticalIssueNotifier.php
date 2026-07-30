@@ -8,6 +8,7 @@
 namespace Citeoryx\Application\Notifications;
 
 use Citeoryx\Domain\Issue\IssueRepository;
+use Citeoryx\Infrastructure\Logging\Logger;
 
 /**
  * Sends one deduplicated summary after a completed scan.
@@ -36,9 +37,7 @@ class CriticalIssueNotifier {
 		try {
 			return $this->send();
 		} catch ( \Throwable $error ) {
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-				error_log( '[Citeoryx] Critical alert failed: ' . $error->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			}
+			Logger::error( 'Critical alert failed', array( 'error' => $error->getMessage() ) );
 			return $this->record_status( 'failed', __( '严重问题通知处理失败。', 'citeoryx' ) );
 		}
 	}

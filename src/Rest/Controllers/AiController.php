@@ -68,6 +68,16 @@ class AiController extends BaseController {
 							'required' => false,
 							'type'     => 'string',
 						),
+						'enabled'  => array(
+							'required' => false,
+							'type'     => 'boolean',
+						),
+						'timeout'  => array(
+							'required' => false,
+							'type'     => 'integer',
+							'minimum'  => AiProviderFactory::MIN_TIMEOUT,
+							'maximum'  => AiProviderFactory::MAX_TIMEOUT,
+						),
 					),
 				),
 			)
@@ -84,25 +94,6 @@ class AiController extends BaseController {
 				),
 			)
 		);
-
-		register_rest_route(
-			$namespace,
-			'/integrations/ai/analyze/(?P<id>\d+)',
-			array(
-				array(
-					'methods'             => 'POST',
-					'callback'            => array( $this, 'analyze_content' ),
-					'permission_callback' => array( $this, 'analyze_permission' ),
-					'args'                => array(
-						'id' => array(
-							'required' => true,
-							'type'     => 'integer',
-							'minimum'  => 1,
-						),
-					),
-				),
-			)
-		);
 	}
 
 	/**
@@ -115,17 +106,6 @@ class AiController extends BaseController {
 	}
 
 	/**
-	 * Analyze permission.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return bool
-	 */
-	public function analyze_permission( WP_REST_Request $request ): bool {
-		return $this->check_cap( Capabilities::USE_AI )
-			&& $this->can_access_content_id( (int) $request->get_param( 'id' ) );
-	}
-
-	/**
 	 * Get AI provider status.
 	 *
 	 * @return \WP_REST_Response
@@ -133,7 +113,7 @@ class AiController extends BaseController {
 	public function get_status(): \WP_REST_Response {
 		$provider_name     = (string) get_option( AiProviderFactory::OPTION_PROVIDER, 'none' );
 		$factory           = new AiProviderFactory();
-		$provider          = $factory->make();
+		$provider          = $factory->make_selected();
 		$provider_settings = array();
 		foreach ( AiProviderFactory::PROVIDERS as $provider_key ) {
 			if ( 'none' !== $provider_key ) {
@@ -144,6 +124,8 @@ class AiController extends BaseController {
 		return $this->success(
 			array(
 				'provider'                     => $provider_name,
+				'enabled'                      => AiProviderFactory::is_enabled(),
+				'timeout'                      => AiProviderFactory::get_timeout(),
 				'configured'                   => $provider->is_configured(),
 				'has_openai_key'               => OpenAiProvider::has_api_key(),
 				'has_anthropic_key'            => AnthropicProvider::has_api_key(),
@@ -168,17 +150,32 @@ class AiController extends BaseController {
 		$api_key  = trim( (string) $request->get_param( 'api_key' ) );
 		$model    = sanitize_text_field( (string) $request->get_param( 'model' ) );
 		$base_url = esc_url_raw( trim( (string) $request->get_param( 'base_url' ) ) );
+		if ( $request->has_param( 'enabled' ) ) {
+			$enabled = rest_sanitize_boolean( $request->get_param( 'enabled' ) );
+		} else {
+			$stored_enabled = get_option( AiProviderFactory::OPTION_ENABLED, null );
+			$enabled        = null === $stored_enabled ? 'none' !== $provider : (bool) $stored_enabled;
+		}
+		$timeout = $request->has_param( 'timeout' )
+			? absint( $request->get_param( 'timeout' ) )
+			: AiProviderFactory::get_timeout();
 
 		if ( ! AiProviderFactory::is_supported_provider( $provider ) ) {
 			return $this->error( __( 'Unsupported AI provider.', 'citeoryx' ), 400 );
 		}
+		if ( $timeout < AiProviderFactory::MIN_TIMEOUT || $timeout > AiProviderFactory::MAX_TIMEOUT ) {
+			return $this->error( __( 'AI request timeout must be between 10 and 180 seconds.', 'citeoryx' ), 400 );
+		}
 
 		if ( 'none' === $provider ) {
 			update_option( AiProviderFactory::OPTION_PROVIDER, $provider );
+			AiProviderFactory::save_runtime_settings( false, $timeout );
 			return $this->success(
 				array(
 					'saved'    => true,
 					'provider' => $provider,
+					'enabled'  => false,
+					'timeout'  => $timeout,
 				)
 			);
 		}
@@ -200,7 +197,7 @@ class AiController extends BaseController {
 		}
 
 		$provider_instance = $this->provider_for_settings( $provider, $model, $base_url );
-		if ( '' === $api_key && ! $provider_instance->is_configured() ) {
+		if ( $enabled && '' === $api_key && ! $provider_instance->is_configured() ) {
 			return $this->error( __( 'An API key is required for this AI provider.', 'citeoryx' ), 400 );
 		}
 
@@ -210,11 +207,14 @@ class AiController extends BaseController {
 
 		AiProviderFactory::save_provider_settings( $provider, $model, $base_url );
 		update_option( AiProviderFactory::OPTION_PROVIDER, $provider );
+		AiProviderFactory::save_runtime_settings( $enabled, $timeout );
 
 		return $this->success(
 			array(
 				'saved'    => true,
 				'provider' => $provider,
+				'enabled'  => $enabled,
+				'timeout'  => $timeout,
 				'settings' => AiProviderFactory::get_provider_settings( $provider ),
 			)
 		);
@@ -226,7 +226,7 @@ class AiController extends BaseController {
 	 * @return \WP_REST_Response
 	 */
 	public function validate_connection(): \WP_REST_Response {
-		$provider = ( new AiProviderFactory() )->make();
+		$provider = ( new AiProviderFactory() )->make_selected();
 
 		if ( ! $provider->is_configured() ) {
 			return $this->success(
@@ -291,68 +291,5 @@ class AiController extends BaseController {
 			default:
 				return DeepSeekProvider::save_api_key( $api_key );
 		}
-	}
-
-	/**
-	 * Analyze a content item with AI.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return \WP_REST_Response
-	 */
-	public function analyze_content( WP_REST_Request $request ): \WP_REST_Response {
-		$factory  = new AiProviderFactory();
-		$provider = $factory->make();
-
-		if ( ! $provider->is_configured() ) {
-			return $this->error( __( 'No AI provider is configured.', 'citeoryx' ), 400 );
-		}
-
-		$content_id   = (int) $request->get_param( 'id' );
-		$content_repo = $this->container->get( \Citeoryx\Domain\Content\ContentRepository::class );
-		$issue_repo   = $this->container->get( \Citeoryx\Domain\Issue\IssueRepository::class );
-
-		$item = $content_repo->find( $content_id );
-		if ( ! $item ) {
-			return $this->error( __( 'Content item not found.', 'citeoryx' ), 404 );
-		}
-
-		$issues_result = $issue_repo->list(
-			array(
-				'content_id' => $content_id,
-				'status'     => 'open',
-			),
-			1,
-			20
-		);
-		$issues        = array_map( static fn( $i ) => $i->to_array(), $issues_result['items'] );
-
-		$post_content = '';
-		if ( $item->object_id && 'post' === $item->object_type ) {
-			$post = get_post( $item->object_id );
-			if ( $post ) {
-				$post_content = apply_filters( 'the_content', $post->post_content );
-			}
-		}
-
-		$context = array(
-			'title'  => $item->metadata['title'] ?? '',
-			'url'    => $item->canonical_url,
-			'issues' => $issues,
-			'scores' => array(
-				'health' => $item->health_score,
-				'aeo'    => $item->ai_readiness_score,
-			),
-		);
-
-		$suggestions     = $provider->suggest_improvements( $post_content, $context );
-		$discoverability = $provider->analyze_discoverability( $post_content, $context );
-
-		return $this->success(
-			array(
-				'content_id'      => $content_id,
-				'suggestions'     => $suggestions,
-				'discoverability' => $discoverability,
-			)
-		);
 	}
 }

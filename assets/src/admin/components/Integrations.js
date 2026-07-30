@@ -270,6 +270,11 @@ const Integrations = () => {
 					{ notice.text }
 				</Notice>
 			) }
+			<AiIntegrationSettings
+				ai={ ai }
+				onSaved={ loadStatus }
+				setNotice={ setNotice }
+			/>
 			<Card>
 				<CardHeader>
 					{ __( 'Google Search Console', 'citeoryx' ) }
@@ -393,12 +398,6 @@ const Integrations = () => {
 					) }
 				</CardBody>
 			</Card>
-
-			<AiIntegrationSettings
-				ai={ ai }
-				onSaved={ loadStatus }
-				setNotice={ setNotice }
-			/>
 		</div>
 	);
 };

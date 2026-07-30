@@ -1,9 +1,9 @@
 # Citeoryx 开发进度
 
-> 最后更新：2026-07-23
+> 最后更新：2026-07-25
 
-> 当前发布版本：2.1.7
-> 下一开发目标：2.2.0
+> 当前发布版本：2.3.0
+> 下一开发目标：2.4.0
 
 ## 已完成功能
 
@@ -41,7 +41,7 @@
 - 后台子菜单只保留已实现页面，所有入口均可正确渲染 React 应用
 - 设置页支持周报与严重问题通知开关、收件邮箱、测试发送和最近发送状态
 - 首次设置加载会隔离可选通知状态异常，后台 API 错误统一过滤 HTML 正文
-- 优化工作台支持编辑标题、摘要和正文，提供字段级差异预览，并在不修改父内容的前提下创建 Revision 供人工审核
+- 优化工作台支持编辑标题、摘要和正文，提供字段级差异预览，并在不修改父内容的前提下创建 Revision 供人工审核；已验证提案可按 GSC/Bing 来源比较发布前后 7/28 天效果
 
 ### 内容扫描与分析
 - 全量/增量扫描 (`ContentScanner.php`)
@@ -164,6 +164,7 @@
 | `src/Application/Planning/PlanningCalendar.php` / `src/Domain/Planning/CalendarRepository.php` | 按站点时区聚合原生定时文章与到期复核内容 |
 | `assets/src/admin/components/PlanningCalendar.js` / `PlanningCalendarLists.js` | 展示发布计划、过期提醒并支持标记复核完成 |
 | `src/Application/Optimize/RevisionDraftService.php` | 通过公开 WordPress Post API 创建安全、幂等的 Revision，并校验完整快照冲突 |
+| `src/Application/Optimize/RevisionPerformanceMonitor.php` / `src/Domain/Metrics/MetricsRepository.php` | 固化验证后的发布时间点，并按来源聚合固定日期范围的发布前后搜索效果 |
 | `src/Rest/Controllers/OptimizerController.php` | 提供编辑快照并新增 `/recommendations/apply` 契约与对象级权限检查 |
 | `assets/src/admin/components/OptimizerRevisionPanel.js` / `RevisionDiffPreview.js` | 编辑拟议字段、预览差异并创建 Revision |
 
@@ -182,7 +183,10 @@
 
 4. **优化工作台闭环**
    - Revision Diff 与安全创建修订（已完成首版：完整字段快照、差异预览、能力与对象权限、并发冲突、幂等提交）
-   - Evidence Panel、内链建议、完成与发布后验证（待开发）
+   - Evidence Panel（已完成首版：规则建议关联问题引擎白名单证据、原生折叠展示与移动端布局）
+   - 内链建议（已完成首版：公开候选、已链接去重、标题/焦点关键词本地相关性评分、语言过滤与人工锚文本）
+   - 发布后效果验证（已完成首版：显式验证扫描固化时间点、7/28 天等长自然日窗口、GSC/Bing 来源分开展示与收集状态）
+   - 完成与发布后验证（已完成首版：提案哈希状态机、发布状态识别、扫描内容哈希验证、偏离提案告警与权限控制）
 
 ## 部署备忘
 

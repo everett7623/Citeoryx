@@ -12,6 +12,7 @@ use Citeoryx\Admin\Assets;
 use Citeoryx\Admin\Notices;
 use Citeoryx\Rest\Router;
 use Citeoryx\Infrastructure\Queue\Scheduler;
+use Citeoryx\Infrastructure\Queue\AiAnalysisQueue;
 use Citeoryx\Infrastructure\Database\SchemaManager;
 use Citeoryx\Support\Privacy;
 use Citeoryx\Integrations\SearchConsole\GoogleOAuth;
@@ -145,6 +146,9 @@ class Plugin {
 		add_action( 'citeoryx_import_search_performance_batch', array( $scheduler, 'import_search_performance_batch' ) );
 		add_action( 'citeoryx_scan_single_post', array( $scheduler, 'scan_single_post' ) );
 		add_action( 'citeoryx_run_scan', array( $scheduler, 'run_scan' ) );
+
+		$ai_queue = $this->container->get( AiAnalysisQueue::class );
+		add_action( AiAnalysisQueue::HOOK, array( $ai_queue, 'run' ) );
 
 		$digest = $this->container->get( WeeklyDigest::class );
 		add_action( 'init', array( $digest, 'ensure_scheduled' ) );

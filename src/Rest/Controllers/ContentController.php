@@ -11,6 +11,7 @@ use Citeoryx\Core\Capabilities;
 use Citeoryx\Domain\Content\ContentRepository;
 use Citeoryx\Application\Scan\ContentScanner;
 use Citeoryx\Application\Analyze\IssueEngine;
+use Citeoryx\Application\Optimize\RevisionDraftService;
 use WP_REST_Request;
 
 /**
@@ -171,6 +172,7 @@ class ContentController extends BaseController {
 		}
 
 		$engine->analyze( $scanned );
+		$this->container->get( RevisionDraftService::class )->record_verified_scan( $id );
 
 		return $this->success( $scanned->to_array() );
 	}

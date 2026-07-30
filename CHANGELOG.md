@@ -1,5 +1,79 @@
 # Changelog
 
+## 2.3.1 - 待发布
+
+### Added
+- 新增统一的日志类 `Logger`，规范化调试输出
+- Dashboard 首次使用时显示友好的空状态提示
+
+### Changed
+- 调试日志统一使用 `Logger` 类，支持结构化上下文
+- 优化前端构建产物（81.7KB JS + 8.52KB CSS）
+
+### Fixed
+- 清理同步冲突文件 `SearchIntegrationHealth.sync-conflict-*.php`
+- 规范化 4 处 `error_log()` 调用
+
+### Development
+- 新增项目升级优化报告 `UPGRADE-REPORT.md`
+- 统一 AI 工具开发文档（CLAUDE.md, .cursorrules, copilot-instructions.md）
+- 新增通用 AI 开发指南 `AI-GUIDELINES.md`
+
+## 2.3.0 - 2026-07-25
+
+### Added
+- 已验证的 Revision 新增发布后 7/28 天搜索效果对比，按 Google Search Console 与 Bing 来源独立展示点击、展示、CTR 和平均排名变化，并标识数据收集状态。
+
+## 2.2.4 - 2026-07-25
+
+### Added
+- 规则优化建议新增可展开的证据面板，显示问题引擎记录的计数、URL、标题结构与 robots 指令等白名单证据。
+- 优化器新增基于本地标题与焦点关键词的内链建议，排除已链接及非公开目标，并提供建议锚文本和相关度依据。
+- Revision 工作流新增待审核、已应用未发布、发布待扫描、已验证和偏离提案状态，并可在优化器中触发发布后扫描验证。
+
+## 2.2.3 - 2026-07-24
+
+### Changed
+- AI 设置移动到集成页顶部，Sub2API / OpenAI Responses（Codex）入口前置；当 Sub2API 根地址误填在普通兼容模式时可一键切换协议。
+
+### Fixed
+- Responses 请求显式使用非流式模式，并兼容 `response.completed` 封装、SSE 文本增量和常见第三方返回结构。
+- AI 连接测试现在区分 HTML 控制面板、空响应、无效 JSON、HTTP 错误和无文本协议响应，同时只展示安全错误字段。
+
+## 2.2.2 - 2026-07-24
+
+### Fixed
+- 集成页全局通知现在独占双栏布局的一整行，不再被相邻 Google 卡片拉伸成大块红色区域。
+- 当 Sub2API 服务根地址误填在普通 OpenAI 兼容模式时，设置页会明确提示改用 OpenAI Responses API，不自动改写用户 URL。
+
+## 2.2.1 - 2026-07-24
+
+### Added
+- AI 设置新增独立启用状态和 10-180 秒请求超时，保存值会实际应用到提供商 HTTP 请求。
+- AI 设置展示官方固定端点、加密密钥状态、数据发送范围说明和内容优化器快捷入口。
+
+### Changed
+- AI 设置按服务商/模型、端点/API Key 的两列结构重排，并拆分为独立表单、标题状态和操作组件。
+- 禁用 AI 时保留已保存的服务商、模型、兼容 URL 和加密密钥；连接测试仍可验证已保存配置。
+
+### Fixed
+- 优化器现在区分“AI 已关闭”和“提供商未配置”，不再把主动关闭误报为配置缺失。
+- 旧版客户端未提交 `enabled` 字段时，选择非 `none` 服务商仍会默认启用，避免升级后行为倒退。
+
+## 2.2.0 - 2026-07-24
+
+### Added
+- 内容优化器新增 AI 深度分析工作流，展示引用潜力、置信度、优势、薄弱点和结构化改进建议。
+- 新增短期 AI 任务状态与最近任务恢复，用户刷新或返回页面后可继续查看 `queued`、`running`、`completed`、`failed` 状态。
+
+### Changed
+- AI 内容分析从同步双请求改为 Action Scheduler / WordPress Cron 后台任务，同一用户与同一内容的活动任务自动复用，避免重复调用上游 API。
+- 优化器拆分为页面控制、规则结果、AI 任务和 AI 结果组件，并在宽屏使用双栏工作区；现有规则评分和 Revision 审核流程保持不变。
+- OpenAI、Anthropic 及兼容提供商现在可解析代码块或简短说明包裹的 JSON 对象。
+
+### Security
+- AI 任务结果按发起用户和内容隔离，REST 响应不暴露内部用户 ID、API Key、上游响应正文或异常详情。
+
 ## 2.1.7 - 2026-07-23
 
 ### Added

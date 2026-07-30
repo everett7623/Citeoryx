@@ -40,7 +40,7 @@
     "high_priority": [...],
     "recent_scans": [...],
     "seo_plugin": "rank-math",
-    "plugin_version": "2.1.7"
+    "plugin_version": "2.3.0"
   }
 }
 ```
@@ -74,7 +74,7 @@
       "top_items": []
     },
     "scans": { "recent": [] },
-    "plugin": { "version": "2.1.7", "seo_plugin": "rank-math" }
+    "plugin": { "version": "2.3.0", "seo_plugin": "rank-math" }
   }
 }
 ```
@@ -323,16 +323,73 @@ GET 与 POST 使用相同的成功响应结构：
       "base_content_hash": "64-character SHA-256 snapshot token",
       "revisions_enabled": true,
       "message": "",
-      "edit_url": "https://example.com/wp-admin/post.php?post=42&action=edit"
+      "edit_url": "https://example.com/wp-admin/post.php?post=42&action=edit",
+      "workflow": {
+        "state": "published_pending_scan",
+        "revision": { "id": 81, "compare_url": "..." },
+        "summary": "Updated examples and evidence",
+        "post_status": "publish",
+        "published": true,
+        "verified": false,
+        "can_verify": true,
+        "last_scanned_at": "2026-07-24 08:00:00",
+        "published_at": null,
+        "verified_at": null
+      }
     },
     "scores": { "health": { "score": 82 }, "aeo": { "score": 71 } },
     "issues": [ ... ],
+    "link_suggestions": [
+      {
+        "target_content_id": 24,
+        "target_post_id": 88,
+        "title": "Related content",
+        "url": "https://example.com/related-content/",
+        "suggested_anchor": "Related content",
+        "score": 64,
+        "reasons": ["Shared topic terms: 2", "Same language"]
+      }
+    ],
+    "revision_performance": {
+      "available": true,
+      "published_at": "2026-07-24T08:00:00+08:00",
+      "verified_at": "2026-07-24T08:05:00+08:00",
+      "windows": [{
+        "days": 7,
+        "elapsed_days": 7,
+        "state": "ready",
+        "baseline": { "start_date": "2026-07-17", "end_date": "2026-07-23" },
+        "current": { "start_date": "2026-07-24", "end_date": "2026-07-30" },
+        "sources": [{
+          "source": "google_search_console",
+          "baseline": { "impressions": 100, "clicks": 10, "ctr": 0.1, "position_avg": 4.2, "days_with_data": 7 },
+          "current": { "impressions": 125, "clicks": 16, "ctr": 0.128, "position_avg": 3.8, "days_with_data": 7 },
+          "delta": { "impressions": 25, "clicks": 6, "ctr": 0.028, "position_avg": -0.4 }
+        }]
+      }]
+    },
     "recommendations": [
-      { "category": "content", "priority": "high", "title": "...", "description": "...", "action": "..." }
+      {
+        "category": "content",
+        "priority": "high",
+        "title": "...",
+        "description": "...",
+        "action": "...",
+        "issue_id": 12,
+        "evidence": [
+          { "label": "Word count", "value": "125" }
+        ]
+      }
     ]
   }
 }
 ```
+
+由问题引擎生成的建议会返回最多 4 条白名单化证据；规则补充建议没有关联问题时不返回证据。证据值是用于管理界面展示的纯文本，不包含未经筛选的问题元数据。
+
+`link_suggestions` 只从已扫描、公开、无密码的 WordPress 内容中选择目标，并排除当前文章、已存在内链和语言明确不一致的内容。相关度来自标题及焦点关键词的本地重合信号；此接口只提供人工编辑时可采用的建议，不会自动修改文章或创建链接。
+
+`editor.workflow.state` 可为 `idle`、`awaiting_review`、`applied_unpublished`、`published_pending_scan`、`verified` 或 `superseded`。系统通过提案哈希、父文章字段、发布状态和最近扫描内容哈希计算状态；只有父文章与提案完全一致、已公开发布且扫描结果覆盖当前修改时才返回 `verified`。`superseded` 表示当前字段既不等于基础快照也不等于提案，需要人工检查。
 
 `editor.base_content_hash` 同时覆盖标题、摘要和正文，用于检测用户打开优化器后发生的并发编辑。无法映射到 WordPress 内容时，`editor` 保持对象结构并返回 `available: false` 和用户可读的 `message`。
 
@@ -365,12 +422,20 @@ GET 与 POST 使用相同的成功响应结构：
       "compare_url": "https://example.com/wp-admin/revision.php?revision=81",
       "edit_url": "https://example.com/wp-admin/post.php?post=42&action=edit",
       "created": true
+    },
+    "workflow": {
+      "state": "awaiting_review",
+      "published": false,
+      "verified": false,
+      "can_verify": false
     }
   }
 }
 ```
 
-相同基础版本和相同提案重复提交时返回已有 Revision、HTTP 200 且 `created: false`。基础快照已变化时返回 HTTP 409；站点禁用 Revision 时也返回 HTTP 409。接口只插入 `post_type=revision` 的子记录，不调用父文章更新或发布操作。
+相同基础版本和相同提案重复提交时返回已有 Revision、HTTP 200 且 `created: false`。基础快照已变化时返回 HTTP 409；站点禁用 Revision 时也返回 HTTP 409。接口只插入 `post_type=revision` 的子记录，不调用父文章更新或发布操作。发布后验证复用 `POST /content/{id}/scan`，完成正文扫描和问题重算后重新读取 `editor.workflow`。
+
+`revision_performance` 仅在已验证的提案由 `POST /content/{id}/scan` 成功记录发布时间和验证时间后可用。它使用发布日前后的等长自然日窗口，固定返回 7 天和 28 天比较；每个 `source` 独立聚合，绝不合并 Google Search Console 与 Bing。`state` 为 `collecting` 表示窗口或任一侧来源数据仍在积累，`ready` 表示可比较，`unavailable` 表示对应窗口没有导入指标。平均排名的负 `delta` 表示排名上升。
 
 ### Integrations
 
@@ -385,10 +450,12 @@ All integration configuration endpoints require `citeoryx_manage_integrations`. 
 | GET | `/integrations/gsc/metrics` | Get Google Search Console query metrics for a date range |
 | GET | `/integrations/gsc/queries?url={url}` | Get search queries for one canonical URL |
 | GET | `/integrations/gsc/sites` | List Search Console sites available to the connected account |
-| GET | `/integrations/ai` | Get configured AI provider state without exposing secrets |
+| GET | `/integrations/ai` | Get configured AI provider, enabled state, timeout, per-provider non-secret settings, and key-presence flags |
+| GET | `/integrations/ai/availability` | Get the active provider name, enabled state, and configured state for the optimizer without exposing settings |
 | POST | `/integrations/ai/settings` | Configure OpenAI, Anthropic, DeepSeek, OpenAI-compatible, OpenAI Responses-compatible, Anthropic-compatible, or `none`; API keys are stored encrypted |
 | POST | `/integrations/ai/validate` | Send a minimal request with the saved provider and return an explicit connection result |
-| POST | `/integrations/ai/analyze/{id}` | Generate AI improvement and discoverability analysis for a content item |
+| POST | `/integrations/ai/analyze/{id}` | Queue AI improvement and discoverability analysis; returns HTTP 202 |
+| GET | `/integrations/ai/analyze/{id}` | Get the latest owner-scoped task, or query a specific task with `task_id` |
 | GET | `/integrations/bing` | Get Bing Webmaster Tools connection state |
 | POST | `/integrations/bing/settings` | Save Bing Webmaster Tools API key |
 | POST | `/integrations/bing/disconnect` | Remove stored Bing API key |
@@ -419,12 +486,32 @@ Google and Bing requests retry transient network errors, HTTP 429, and HTTP 5xx 
 ```json
 {
   "provider": "anthropic_compatible",
+  "enabled": true,
+  "timeout": 90,
   "api_key": "provider-secret",
   "model": "claude-haiku-4-5-20251001",
   "base_url": "https://api.example.com/custom-endpoint?route=sub2api"
 }
 ```
 
-`provider` 可为 `openai`、`anthropic`、`deepseek`、`openai_compatible`、`openai_responses`、`anthropic_compatible` 或 `none`。官方提供商的 `model` 可省略并使用默认值。`openai_compatible` 与 `anthropic_compatible` 必须同时提交 `model` 与完整 HTTPS 请求 URL `base_url`，系统会原样使用该 URL。`openai_responses` 用于 Sub2API/Codex 等 Responses 协议网关，`base_url` 填 HTTPS 服务根地址，系统请求其 `/v1/responses`。兼容 URL 允许查询参数，但不得包含用户名、密码或片段。密钥不出现在任何 GET 响应中。
+`provider` 可为 `openai`、`anthropic`、`deepseek`、`openai_compatible`、`openai_responses`、`anthropic_compatible` 或 `none`。`enabled` 控制内容分析是否可用；关闭后保留服务商设置和加密密钥。`timeout` 为 10-180 秒，默认 60 秒，并实际用于提供商 HTTP 请求。官方提供商的 `model` 可省略并使用默认值。`openai_compatible` 与 `anthropic_compatible` 必须同时提交 `model` 与完整 HTTPS 请求 URL `base_url`，系统会原样使用该 URL。`openai_responses` 用于 Sub2API/Codex 等 Responses 协议网关，`base_url` 填 HTTPS 服务根地址，系统请求其 `/v1/responses`。兼容 URL 允许查询参数，但不得包含用户名、密码或片段。密钥不出现在任何 GET 响应中。
 
-`POST /integrations/ai/validate` 使用当前已保存的提供商、模型、端点和加密 API Key 发送一次最小请求，返回 `data.valid` 与可展示的 `data.message`。该响应不会包含密钥或第三方响应正文。
+`POST /integrations/ai/validate` 使用当前已保存的提供商、模型、端点、超时和加密 API Key 发送一次最小请求，即使 AI 分析暂时关闭也可以测试。接口返回 `data.valid` 与可展示的 `data.message`，不会包含密钥或第三方响应正文。
+
+`POST /integrations/ai/analyze/{id}` 不在 REST 请求中调用上游模型。接口创建后台任务并立即返回 HTTP 202；同一用户和同一内容已有 `queued` 或 `running` 任务时返回原任务并设置 `reused: true`。任务通过 Action Scheduler 执行，缺少时回退 WordPress Cron。
+
+```json
+{
+  "success": true,
+  "data": {
+    "task_id": "0f1d8299-9f90-4aa3-b9cf-e31fc877a9e7",
+    "content_id": 42,
+    "status": "queued",
+    "created_at": "2026-07-24T08:00:00+00:00",
+    "updated_at": "2026-07-24T08:00:00+00:00",
+    "reused": false
+  }
+}
+```
+
+`GET /integrations/ai/analyze/{id}` 不传 `task_id` 时返回当前用户对该内容最近一小时内的任务；没有任务时返回相同字段结构且 `status: "idle"`。显式传入 `task_id` 时只允许任务发起者读取，不存在、内容不匹配或用户不匹配均返回 HTTP 404。完成状态包含 `result.suggestions` 和 `result.discoverability`；失败状态包含安全的 `error`，不会返回上游响应正文、请求地址或异常详情。

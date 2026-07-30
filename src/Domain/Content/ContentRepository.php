@@ -240,6 +240,32 @@ class ContentRepository {
 	}
 
 	/**
+	 * List recently indexed public posts that may receive an internal link.
+	 *
+	 * @param int $exclude_id Content item ID to exclude.
+	 * @param int $limit      Maximum candidate count.
+	 * @return array<ContentItem>
+	 */
+	public function list_public_link_candidates( int $exclude_id, int $limit = 200 ): array {
+		global $wpdb;
+
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT content.* FROM %i content
+				INNER JOIN %i posts ON posts.ID = content.object_id AND content.object_type = 'post'
+				WHERE content.id != %d AND posts.post_status = 'publish' AND posts.post_password = ''
+				ORDER BY content.updated_at DESC LIMIT %d",
+				$this->table(),
+				$wpdb->posts,
+				max( 0, $exclude_id ),
+				max( 1, min( 200, $limit ) )
+			)
+		);
+
+		return array_map( static fn ( $row ) => ContentItem::from_row( $row ), $rows ?: array() );
+	}
+
+	/**
 	 * Get count by status.
 	 *
 	 * @return array<string, int>
