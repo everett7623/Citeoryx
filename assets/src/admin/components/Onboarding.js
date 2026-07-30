@@ -22,23 +22,88 @@ const Onboarding = ( { initialData, onComplete } ) => {
 	const [ settings, setSettings ] = useState( initialData.settings );
 	const [ loading, setLoading ] = useState( false );
 	const [ error, setError ] = useState( null );
+	const [ fieldErrors, setFieldErrors ] = useState( {} );
+
+	const validateField = ( fieldName, value ) => {
+		let errorMessage = null;
+
+		switch ( fieldName ) {
+			case 'site_type':
+			case 'primary_goal':
+			case 'update_rhythm':
+			case 'risk_level':
+			case 'review_cycle_days':
+				if ( ! value ) {
+					errorMessage = __( '此字段必填', 'citeoryx' );
+				}
+				break;
+			case 'main_language':
+				if ( ! value || value.trim() === '' ) {
+					errorMessage = __( '请输入主要语言', 'citeoryx' );
+				} else if ( value.length > 20 ) {
+					errorMessage = __( '语言代码不能超过 20 个字符', 'citeoryx' );
+				}
+				break;
+			case 'main_region':
+				if ( ! value || value.trim() === '' ) {
+					errorMessage = __( '请输入主要地区', 'citeoryx' );
+				} else if ( value.length > 20 ) {
+					errorMessage = __( '地区代码不能超过 20 个字符', 'citeoryx' );
+				}
+				break;
+			case 'core_content_types':
+				if ( ! value || value.length === 0 ) {
+					errorMessage = __( '请至少选择一种内容类型', 'citeoryx' );
+				}
+				break;
+		}
+
+		setFieldErrors( ( prev ) => {
+			if ( errorMessage ) {
+				return { ...prev, [ fieldName ]: errorMessage };
+			} else {
+				const { [ fieldName ]: _, ...rest } = prev;
+				return rest;
+			}
+		} );
+
+		return errorMessage === null;
+	};
+
+	const handleProfileChange = ( newProfile ) => {
+		setProfile( newProfile );
+		// 清除全局错误
+		if ( error ) {
+			setError( null );
+		}
+	};
 
 	const save = () => {
-		const required = [
-			profile.site_type,
-			profile.primary_goal,
-			profile.main_language,
-			profile.main_region,
-			profile.update_rhythm,
-			profile.risk_level,
-			profile.review_cycle_days,
+		// 验证所有字段
+		const fieldsToValidate = [
+			'site_type',
+			'primary_goal',
+			'main_language',
+			'main_region',
+			'update_rhythm',
+			'risk_level',
+			'review_cycle_days',
+			'core_content_types',
 		];
-		if ( required.some( ( value ) => ! value ) ) {
-			setError( __( '请完成所有站点画像字段。', 'citeoryx' ) );
-			return;
-		}
-		if ( ! profile.core_content_types?.length ) {
-			setError( __( '请至少选择一种核心内容类型。', 'citeoryx' ) );
+
+		let hasErrors = false;
+		fieldsToValidate.forEach( ( field ) => {
+			const value =
+				field === 'core_content_types'
+					? profile.core_content_types
+					: profile[ field ];
+			if ( ! validateField( field, value ) ) {
+				hasErrors = true;
+			}
+		} );
+
+		if ( hasErrors ) {
+			setError( __( '请修正表单中的错误后再提交。', 'citeoryx' ) );
 			return;
 		}
 

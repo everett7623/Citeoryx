@@ -355,6 +355,37 @@
 	}
 }
 
+/* 表单验证错误样式 */
+.components-base-control.has-error .components-base-control__field {
+	border-color: #cc1818;
+}
+
+.components-base-control.has-error .components-text-control__input,
+.components-base-control.has-error .components-select-control__input {
+	border-color: #cc1818;
+}
+
+.components-base-control.has-error .components-base-control__help {
+	color: #cc1818;
+}
+
+.citeoryx-content-types.has-error {
+	border: 1px solid #cc1818;
+	padding: 12px;
+	border-radius: 4px;
+	margin-bottom: 16px;
+}
+
+.citeoryx-content-types.has-error legend {
+	color: #cc1818;
+}
+
+.citeoryx-content-types-error {
+	color: #cc1818;
+	font-size: 12px;
+	margin-top: 8px;
+}
+
 .citeoryx-recommendation-evidence {
 	border-left: 3px solid #72aee6;
 	margin: 0.75rem 0;

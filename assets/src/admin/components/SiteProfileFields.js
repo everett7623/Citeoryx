@@ -10,8 +10,15 @@ const withPlaceholder = ( options ) => [
 	...( options || [] ),
 ];
 
-const SiteProfileFields = ( { profile, options, onChange } ) => {
+const SiteProfileFields = ( { profile, options, onChange, onValidate, errors = {} } ) => {
 	const update = ( key, value ) => onChange( { ...profile, [ key ]: value } );
+
+	const handleBlur = ( key, value ) => {
+		if ( onValidate ) {
+			onValidate( key, value );
+		}
+	};
+
 	const selectedContentTypes = profile.core_content_types || [];
 
 	const toggleContentType = ( value, checked ) => {
@@ -28,6 +35,9 @@ const SiteProfileFields = ( { profile, options, onChange } ) => {
 				value={ profile.site_type || '' }
 				options={ withPlaceholder( options.site_types ) }
 				onChange={ ( value ) => update( 'site_type', value ) }
+				onBlur={ () => handleBlur( 'site_type', profile.site_type ) }
+				help={ errors.site_type }
+				className={ errors.site_type ? 'has-error' : '' }
 				__nextHasNoMarginBottom
 			/>
 			<SelectControl
@@ -35,9 +45,12 @@ const SiteProfileFields = ( { profile, options, onChange } ) => {
 				value={ profile.primary_goal || '' }
 				options={ withPlaceholder( options.primary_goals ) }
 				onChange={ ( value ) => update( 'primary_goal', value ) }
+				onBlur={ () => handleBlur( 'primary_goal', profile.primary_goal ) }
+				help={ errors.primary_goal }
+				className={ errors.primary_goal ? 'has-error' : '' }
 				__nextHasNoMarginBottom
 			/>
-			<fieldset className="citeoryx-content-types">
+			<fieldset className={ `citeoryx-content-types${ errors.core_content_types ? ' has-error' : '' }` }>
 				<legend>{ __( '核心内容类型', 'citeoryx' ) }</legend>
 				{ ( options.content_types || [] ).map( ( option ) => (
 					<CheckboxControl
@@ -46,12 +59,22 @@ const SiteProfileFields = ( { profile, options, onChange } ) => {
 						checked={ selectedContentTypes.includes(
 							option.value
 						) }
-						onChange={ ( checked ) =>
-							toggleContentType( option.value, checked )
-						}
+						onChange={ ( checked ) => {
+							toggleContentType( option.value, checked );
+							// 验证内容类型
+							const newTypes = checked
+								? [ ...selectedContentTypes, option.value ]
+								: selectedContentTypes.filter( ( item ) => item !== option.value );
+							handleBlur( 'core_content_types', newTypes );
+						} }
 						__nextHasNoMarginBottom
 					/>
 				) ) }
+				{ errors.core_content_types && (
+					<div className="citeoryx-content-types-error">
+						{ errors.core_content_types }
+					</div>
+				) }
 			</fieldset>
 			<div className="citeoryx-field-grid">
 				<TextControl
