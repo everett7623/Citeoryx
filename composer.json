@@ -3,6 +3,12 @@
   "description": "WordPress Content Health & AI Discoverability Engine",
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",
+  "authors": [
+    {
+      "name": "everettlabs",
+      "email": "everett7623@gmail.com"
+    }
+  ],
   "require": {
     "php": ">=8.0"
   },
