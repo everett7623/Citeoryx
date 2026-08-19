@@ -49,6 +49,11 @@ Citeoryx 与 Rank Math、Yoast、AIOSEO、SEOPress 等基础 SEO 插件兼容，
 
 == Changelog ==
 
+= 2.3.1 =
+* 新增统一日志工具，规范调试输出和结构化上下文。
+* 改进 Dashboard、内容资产和问题列表的空状态提示。
+* 优化 WordPress 后台移动端布局，并为 Onboarding 表单增加实时字段验证。
+
 = 2.3.0 =
 * 已验证的 Revision 新增发布后 7/28 天搜索效果对比，按 Google Search Console 与 Bing 来源独立展示点击、展示、CTR 和平均排名变化，并标识数据收集状态。
 

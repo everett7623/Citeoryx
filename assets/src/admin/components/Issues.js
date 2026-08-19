@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from '@wordpress/element';
+import { useState, useEffect, useCallback, useRef } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { getApiErrorMessage } from '../apiError';
@@ -14,6 +14,19 @@ import {
 } from '@wordpress/components';
 import { warning } from '@wordpress/icons';
 
+const getEmptyInstructions = ( status ) => {
+	if ( status === 'resolved' ) {
+		return __( '尚无已解决的问题。', 'citeoryx' );
+	}
+	if ( status === 'ignored' ) {
+		return __( '尚无已忽略的问题。', 'citeoryx' );
+	}
+	return __(
+		'太棒了！当前没有待处理的问题。运行扫描以检查内容健康度。',
+		'citeoryx'
+	);
+};
+
 const Issues = () => {
 	const canExport = Boolean( window.citeoryxAdmin?.user?.canExport );
 	const canManageIssues = Boolean(
@@ -25,37 +38,47 @@ const Issues = () => {
 	const [ loading, setLoading ] = useState( true );
 	const [ status, setStatus ] = useState( 'open' );
 	const [ error, setError ] = useState( null );
+	const requestIdRef = useRef( 0 );
+	const statusRef = useRef( status );
+	statusRef.current = status;
 
-	const fetchIssues = useCallback(
-		( currentPage ) => {
-			setLoading( true );
-			setError( null );
-			const query = new URLSearchParams();
-			query.set( 'page', currentPage );
-			query.set( 'per_page', '20' );
-			query.set( 'status', status );
+	const fetchIssues = useCallback( ( currentPage, requestedStatus ) => {
+		const requestId = ++requestIdRef.current;
+		setLoading( true );
+		setError( null );
+		const query = new URLSearchParams();
+		query.set( 'page', currentPage );
+		query.set( 'per_page', '20' );
+		query.set( 'status', requestedStatus );
 
-			apiFetch( { path: `citeoryx/v1/issues?${ query.toString() }` } )
-				.then( ( response ) => {
-					setIssues( response.data.items );
-					setTotal( response.data.total );
-				} )
-				.catch( ( err ) =>
+		apiFetch( { path: `citeoryx/v1/issues?${ query.toString() }` } )
+			.then( ( response ) => {
+				if ( requestId !== requestIdRef.current ) {
+					return;
+				}
+				setIssues( response.data.items );
+				setTotal( response.data.total );
+			} )
+			.catch( ( err ) => {
+				if ( requestId === requestIdRef.current ) {
 					setError(
 						getApiErrorMessage(
 							err,
 							__( '无法加载问题列表。', 'citeoryx' )
 						)
-					)
-				)
-				.finally( () => setLoading( false ) );
-		},
-		[ status ]
-	);
+					);
+				}
+			} )
+			.finally( () => {
+				if ( requestId === requestIdRef.current ) {
+					setLoading( false );
+				}
+			} );
+	}, [] );
 
 	useEffect( () => {
-		fetchIssues( page );
-	}, [ fetchIssues, page ] );
+		fetchIssues( page, status );
+	}, [ fetchIssues, page, status ] );
 
 	const resolveIssue = ( id ) => {
 		setError( null );
@@ -64,7 +87,7 @@ const Issues = () => {
 			method: 'PATCH',
 			data: { status: 'resolved' },
 		} )
-			.then( () => fetchIssues( page ) )
+			.then( () => fetchIssues( page, statusRef.current ) )
 			.catch( ( err ) =>
 				setError(
 					getApiErrorMessage(
@@ -169,13 +192,7 @@ const Issues = () => {
 						<Placeholder
 							icon={ warning }
 							label={ __( '暂无问题', 'citeoryx' ) }
-							instructions={
-								status === 'resolved'
-									? __( '尚无已解决的问题。', 'citeoryx' )
-									: status === 'ignored'
-									? __( '尚无已忽略的问题。', 'citeoryx' )
-									: __( '太棒了！当前没有待处理的问题。运行扫描以检查内容健康度。', 'citeoryx' )
-							}
+							instructions={ getEmptyInstructions( status ) }
 						/>
 					) }
 
@@ -183,59 +200,64 @@ const Issues = () => {
 						<table className="wp-list-table widefat fixed striped table-view-list">
 							<thead>
 								<tr>
-								<th>{ __( '问题代码', 'citeoryx' ) }</th>
-								<th>{ __( '标题', 'citeoryx' ) }</th>
-								<th>{ __( '分类', 'citeoryx' ) }</th>
-								<th>{ __( '严重度', 'citeoryx' ) }</th>
-								<th>{ __( '优先级', 'citeoryx' ) }</th>
-								<th>{ __( '操作', 'citeoryx' ) }</th>
-							</tr>
-						</thead>
-						<tbody>
-							{ issues.map( ( issue ) => (
-								<tr key={ issue.id }>
-									<td>{ issue.issue_code }</td>
-									<td>{ issue.title }</td>
-									<td>{ issue.category }</td>
-									<td>{ issue.severity }</td>
-									<td>{ issue.priority_score ?? '-' }</td>
-									<td>
-										{ canManageIssues &&
-											status === 'open' && (
-												<Button
-													size="small"
-													onClick={ () =>
-														resolveIssue( issue.id )
-													}
-												>
-													{ __( '解决', 'citeoryx' ) }
-												</Button>
-											) }
-									</td>
+									<th>{ __( '问题代码', 'citeoryx' ) }</th>
+									<th>{ __( '标题', 'citeoryx' ) }</th>
+									<th>{ __( '分类', 'citeoryx' ) }</th>
+									<th>{ __( '严重度', 'citeoryx' ) }</th>
+									<th>{ __( '优先级', 'citeoryx' ) }</th>
+									<th>{ __( '操作', 'citeoryx' ) }</th>
 								</tr>
-							) ) }
+							</thead>
+							<tbody>
+								{ issues.map( ( issue ) => (
+									<tr key={ issue.id }>
+										<td>{ issue.issue_code }</td>
+										<td>{ issue.title }</td>
+										<td>{ issue.category }</td>
+										<td>{ issue.severity }</td>
+										<td>{ issue.priority_score ?? '-' }</td>
+										<td>
+											{ canManageIssues &&
+												status === 'open' && (
+													<Button
+														size="small"
+														onClick={ () =>
+															resolveIssue(
+																issue.id
+															)
+														}
+													>
+														{ __(
+															'解决',
+															'citeoryx'
+														) }
+													</Button>
+												) }
+										</td>
+									</tr>
+								) ) }
 							</tbody>
 						</table>
 					) }
 
 					{ ! loading && issues.length > 0 && totalPages > 1 && (
 						<div className="citeoryx-pagination">
-						<Button
-							disabled={ page <= 1 }
-							onClick={ () => setPage( page - 1 ) }
-						>
-							{ __( '上一页', 'citeoryx' ) }
-						</Button>
-						<span>
-							{ page } / { totalPages || 1 }
-						</span>
-						<Button
-							disabled={ page >= totalPages }
-							onClick={ () => setPage( page + 1 ) }
-						>
-							{ __( '下一页', 'citeoryx' ) }
-						</Button>
-					</div>
+							<Button
+								disabled={ page <= 1 }
+								onClick={ () => setPage( page - 1 ) }
+							>
+								{ __( '上一页', 'citeoryx' ) }
+							</Button>
+							<span>
+								{ page } / { totalPages || 1 }
+							</span>
+							<Button
+								disabled={ page >= totalPages }
+								onClick={ () => setPage( page + 1 ) }
+							>
+								{ __( '下一页', 'citeoryx' ) }
+							</Button>
+						</div>
 					) }
 				</CardBody>
 			</Card>

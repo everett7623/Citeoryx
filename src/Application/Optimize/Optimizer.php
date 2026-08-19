@@ -32,11 +32,11 @@ class Optimizer {
 		InternalLinkSuggester $link_suggester,
 		RevisionPerformanceMonitor $performance_monitor
 	) {
-		$this->content_repo   = $content_repo;
-		$this->issue_repo     = $issue_repo;
-		$this->health_scorer  = $health_scorer;
-		$this->aeo_scorer     = $aeo_scorer;
-		$this->link_suggester = $link_suggester;
+		$this->content_repo        = $content_repo;
+		$this->issue_repo          = $issue_repo;
+		$this->health_scorer       = $health_scorer;
+		$this->aeo_scorer          = $aeo_scorer;
+		$this->link_suggester      = $link_suggester;
 		$this->performance_monitor = $performance_monitor;
 	}
 
@@ -109,14 +109,14 @@ class Optimizer {
 		}
 
 		return array(
-			'content'          => $item->to_array(),
-			'scores'           => array(
+			'content'              => $item->to_array(),
+			'scores'               => array(
 				'health' => $health,
 				'aeo'    => $aeo,
 			),
-			'issues'           => $issues,
-			'recommendations'  => $recommendations,
-			'link_suggestions' => $this->link_suggester->suggest( $content_id ),
+			'issues'               => $issues,
+			'recommendations'      => $recommendations,
+			'link_suggestions'     => $this->link_suggester->suggest( $content_id ),
 			'revision_performance' => $this->performance_monitor->get_performance( $content_id ),
 		);
 	}

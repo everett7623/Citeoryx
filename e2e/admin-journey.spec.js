@@ -4,7 +4,12 @@ const {
 	expectHealthyAdminPage,
 	watchBrowserErrors,
 } = require( './browser-health' );
-const { completeSiteProfile, updateSiteProfile } = require( './wp-env' );
+const {
+	completeSiteProfile,
+	prepareIssueJourney,
+	prepareScanJourney,
+	updateSiteProfile,
+} = require( './wp-env' );
 
 const adminUrl = '/wp-admin/admin.php?page=citeoryx-dashboard';
 
@@ -66,6 +71,102 @@ test.describe( 'Citeoryx 管理后台关键旅程', () => {
 		expect( download.suggestedFilename() ).toMatch( /\.pdf$/i );
 		expect( file.subarray( 0, 5 ).toString() ).toBe( '%PDF-' );
 		expect( file.byteLength ).toBeGreaterThan( 1_000 );
+		await expectHealthyAdminPage( page, errors );
+	} );
+
+	test( '管理员可启动扫描并读取任务进度', async ( { page } ) => {
+		test.setTimeout( 75_000 );
+		prepareScanJourney( completeSiteProfile );
+		const errors = watchBrowserErrors( page );
+		await page.goto( adminUrl );
+
+		const scanButton = page.getByRole( 'button', {
+			name: /^(开始扫描|运行增量扫描)$/,
+		} );
+		await expect( scanButton ).toBeEnabled();
+
+		const createResponsePromise = page.waitForResponse(
+			( response ) =>
+				'POST' === response.request().method() &&
+				decodeURIComponent( response.url() ).includes(
+					'/citeoryx/v1/scans'
+				)
+		);
+		const progressResponsePromise = page.waitForResponse(
+			( response ) =>
+				'GET' === response.request().method() &&
+				/\/citeoryx\/v1\/scans\/\d+/.test(
+					decodeURIComponent( response.url() )
+				)
+		);
+
+		await scanButton.click();
+		const createResponse = await createResponsePromise;
+		const createPayload = await createResponse.json();
+
+		expect( createResponse.status() ).toBe( 202 );
+		expect( createPayload.success ).toBe( true );
+		expect( createPayload.data.id ).toEqual( expect.any( Number ) );
+		expect( createPayload.data.id ).toBeGreaterThan( 0 );
+		expect( createPayload.data.scan_type ).toBe( 'incremental' );
+		expect( createPayload.data.trigger_type ).toBe( 'manual' );
+		expect( [ 'queued', 'running' ] ).toContain(
+			createPayload.data.status
+		);
+
+		const progressResponse = await progressResponsePromise;
+		const progressPayload = await progressResponse.json();
+		expect( progressResponse.status() ).toBe( 200 );
+		expect( progressPayload.success ).toBe( true );
+		expect( progressPayload.data.id ).toBe( createPayload.data.id );
+		expect( [ 'queued', 'running', 'completed' ] ).toContain(
+			progressPayload.data.status
+		);
+		await expectHealthyAdminPage( page, errors );
+	} );
+
+	test( '管理员可查看并解决内容问题', async ( { page } ) => {
+		test.setTimeout( 75_000 );
+		prepareIssueJourney( completeSiteProfile );
+		const errors = watchBrowserErrors( page );
+		await page.goto( adminUrl );
+		await page.getByRole( 'tab', { name: '问题与机会' } ).click();
+		await expect( page ).toHaveURL( /#\/issues$/ );
+
+		const issueRow = page
+			.getByRole( 'row' )
+			.filter( { hasText: 'CX_E2E_VISIBLE_ISSUE' } );
+		await expect( issueRow ).toContainText( 'E2E visible issue' );
+		await expect( issueRow ).toContainText( 'high' );
+		await expect( issueRow ).toContainText( '88.5' );
+
+		const updateResponsePromise = page.waitForResponse(
+			( response ) =>
+				'POST' === response.request().method() &&
+				/\/citeoryx\/v1\/issues\/\d+/.test(
+					decodeURIComponent( response.url() )
+				)
+		);
+		await issueRow.getByRole( 'button', { name: '解决' } ).click();
+		const updateResponse = await updateResponsePromise;
+		const updatePayload = await updateResponse.json();
+		expect( updateResponse.status() ).toBe( 200 );
+		expect(
+			updateResponse.request().headers()[ 'x-http-method-override' ]
+		).toBe( 'PATCH' );
+		expect( updatePayload.success ).toBe( true );
+		expect( updatePayload.data.issue_code ).toBe( 'CX_E2E_VISIBLE_ISSUE' );
+		expect( updatePayload.data.status ).toBe( 'resolved' );
+		await expect( issueRow ).toHaveCount( 0 );
+
+		await page.getByLabel( '状态' ).selectOption( 'resolved' );
+		const resolvedRow = page
+			.getByRole( 'row' )
+			.filter( { hasText: 'CX_E2E_VISIBLE_ISSUE' } );
+		await expect( resolvedRow ).toContainText( 'E2E visible issue' );
+		await expect(
+			resolvedRow.getByRole( 'button', { name: '解决' } )
+		).toHaveCount( 0 );
 		await expectHealthyAdminPage( page, errors );
 	} );
 } );

@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- 新增项目一致性检查，自动校验发布版本并阻止覆盖率与临时输出进入 Git
+- 新增 Onboarding 表单验证状态传递的前端回归测试
+- 新增可切换 `cli` / `tests-cli` 的 Playwright 环境目标，并在 WordPress 6.6.7 与 7.0.4 完成真实后台旅程验证
+- 新增扫描任务创建与首次进度轮询的真实 Playwright 后台旅程
+- 新增问题列表查看、解决和状态筛选的真实 Playwright 后台旅程
+
+### Changed
+- 清理空的 Web 脚手架、历史覆盖率报告与临时 PDF 输出
+- 统一架构、测试和发布文档中的目录及 2.3.1 版本信息
+- 固定 PHP 与 Shell 脚本使用 LF 换行，并关闭 wp-env 中的 WordPress 自动升级
+- Playwright 全局准备现在会幂等激活 Citeoryx，不再依赖人工环境状态
+
+### Fixed
+- 修复 Onboarding 已生成字段错误但未传递到站点画像表单的问题
+- 修复现有 JavaScript 与 CSS 代码规范错误
+- 修复 Windows Node.js 无法通过 `execFileSync` 直接执行 `npx.cmd` 的问题
+- 修复 Optimizer 测试依赖缺失及日历测试使用过期固定日期的问题
+- 修复解决问题后快速切换状态时，较早的列表响应覆盖当前筛选结果的问题
+
 ## 2.3.1 - 2026-07-30
 
 ### Added

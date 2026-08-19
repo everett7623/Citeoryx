@@ -242,14 +242,14 @@ class MetricsRepository {
 
 		$aggregates = array();
 		foreach ( $rows ?: array() as $row ) {
-			$aggregate                 = $this->normalize_aggregate( $row );
-			$impressions               = (float) ( $row['impressions'] ?? 0 );
-			$aggregate['position_avg'] = $impressions > 0
+			$aggregate                             = $this->normalize_aggregate( $row );
+			$impressions                           = (float) ( $row['impressions'] ?? 0 );
+			$aggregate['position_avg']             = $impressions > 0
 				? (float) ( $row['position_weight'] ?? 0 ) / $impressions
 				: null;
-			$aggregate['days_with_data']  = (int) ( $row['days_with_data'] ?? 0 );
-			$aggregate['first_metric_date'] = $row['first_metric_date'] ?: null;
-			$aggregate['last_metric_date']  = $row['last_metric_date'] ?: null;
+			$aggregate['days_with_data']           = (int) ( $row['days_with_data'] ?? 0 );
+			$aggregate['first_metric_date']        = $row['first_metric_date'] ?: null;
+			$aggregate['last_metric_date']         = $row['last_metric_date'] ?: null;
 			$aggregates[ (string) $row['source'] ] = $aggregate;
 		}
 

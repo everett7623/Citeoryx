@@ -11,11 +11,14 @@ use Citeoryx\Application\Analyze\AiReadinessScorer;
 use Citeoryx\Application\Analyze\HealthScorer;
 use Citeoryx\Application\Optimize\InternalLinkSuggester;
 use Citeoryx\Application\Optimize\Optimizer;
+use Citeoryx\Application\Optimize\RevisionDraftService;
+use Citeoryx\Application\Optimize\RevisionPerformanceMonitor;
 use Citeoryx\Domain\Content\ContentItem;
 use Citeoryx\Domain\Content\ContentRepository;
 use Citeoryx\Domain\Issue\Issue;
 use Citeoryx\Domain\Issue\IssueRepository;
 use Citeoryx\Domain\Link\LinkRepository;
+use Citeoryx\Domain\Metrics\MetricsRepository;
 use WP_UnitTestCase;
 
 /**
@@ -29,14 +32,17 @@ class OptimizerEvidenceTest extends WP_UnitTestCase {
 	 * @return void
 	 */
 	public function test_recommendations_include_formatted_issue_evidence(): void {
-		$content_repo = new ContentRepository();
-		$issue_repo   = new IssueRepository();
-		$item         = new ContentItem();
+		$content_repo        = new ContentRepository();
+		$issue_repo          = new IssueRepository();
+		$item                = new ContentItem();
 		$item->canonical_url = home_url( '/optimizer-evidence' );
 		$item->url_hash      = md5( $item->canonical_url );
 		$item->metadata      = array(
 			'word_count'     => 800,
-			'headings'       => array( 1 => 1, 2 => 2 ),
+			'headings'       => array(
+				1 => 1,
+				2 => 2,
+			),
 			'internal_links' => 3,
 		);
 		$item->id            = $content_repo->save( $item );
@@ -58,13 +64,17 @@ class OptimizerEvidenceTest extends WP_UnitTestCase {
 			$issue_repo,
 			new HealthScorer(),
 			new AiReadinessScorer(),
-			new InternalLinkSuggester( $content_repo, new LinkRepository() )
+			new InternalLinkSuggester( $content_repo, new LinkRepository() ),
+			new RevisionPerformanceMonitor(
+				new RevisionDraftService( $content_repo ),
+				new MetricsRepository()
+			)
 		);
 		$results   = $optimizer->get_recommendations( $item->id );
 		$matches   = array_values(
 			array_filter(
 				$results['recommendations'],
-				static fn ( array $recommendation ): bool => $issue_id === ( $recommendation['issue_id'] ?? 0 )
+				static fn ( array $recommendation ): bool => ( $recommendation['issue_id'] ?? 0 ) === $issue_id
 			)
 		);
 

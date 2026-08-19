@@ -65,10 +65,10 @@ class RevisionPerformanceMonitor {
 	 * @return array<string, mixed>
 	 */
 	private function compare_window( int $content_id, DateTimeImmutable $published, DateTimeImmutable $today, int $days ): array {
-		$days_since = (int) $published->diff( $today )->format( '%r%a' );
-		$elapsed    = min( $days, max( 1, $days_since + 1 ) );
-		$current_end = $published->modify( '+' . ( $elapsed - 1 ) . ' days' );
-		$baseline_end = $published->modify( '-1 day' );
+		$days_since     = (int) $published->diff( $today )->format( '%r%a' );
+		$elapsed        = min( $days, max( 1, $days_since + 1 ) );
+		$current_end    = $published->modify( '+' . ( $elapsed - 1 ) . ' days' );
+		$baseline_end   = $published->modify( '-1 day' );
 		$baseline_start = $published->modify( '-' . $elapsed . ' days' );
 
 		$baseline = $this->metrics->aggregate_by_source_between(
@@ -76,22 +76,22 @@ class RevisionPerformanceMonitor {
 			$baseline_start->format( 'Y-m-d' ),
 			$baseline_end->format( 'Y-m-d' )
 		);
-		$current = $this->metrics->aggregate_by_source_between(
+		$current  = $this->metrics->aggregate_by_source_between(
 			$content_id,
 			$published->format( 'Y-m-d' ),
 			$current_end->format( 'Y-m-d' )
 		);
-		$sources = array_values( array_unique( array_merge( array_keys( $baseline ), array_keys( $current ) ) ) );
+		$sources  = array_values( array_unique( array_merge( array_keys( $baseline ), array_keys( $current ) ) ) );
 		sort( $sources, SORT_STRING );
 
-		$comparisons   = array();
+		$comparisons    = array();
 		$has_comparison = false;
 		foreach ( $sources as $source ) {
-			$before = $baseline[ $source ] ?? $this->empty_aggregate();
-			$after  = $current[ $source ] ?? $this->empty_aggregate();
+			$before         = $baseline[ $source ] ?? $this->empty_aggregate();
+			$after          = $current[ $source ] ?? $this->empty_aggregate();
 			$comparable     = $before['days_with_data'] > 0 && $after['days_with_data'] > 0;
 			$has_comparison = $has_comparison || $comparable;
-			$comparisons[] = array(
+			$comparisons[]  = array(
 				'source'   => $source,
 				'state'    => $comparable ? 'ready' : 'unavailable',
 				'baseline' => $before,
@@ -104,15 +104,15 @@ class RevisionPerformanceMonitor {
 			'days'         => $days,
 			'elapsed_days' => $elapsed,
 			'state'        => $elapsed < $days ? 'collecting' : ( $has_comparison ? 'ready' : 'unavailable' ),
-			'baseline'      => array(
+			'baseline'     => array(
 				'start_date' => $baseline_start->format( 'Y-m-d' ),
 				'end_date'   => $baseline_end->format( 'Y-m-d' ),
 			),
-			'current'       => array(
+			'current'      => array(
 				'start_date' => $published->format( 'Y-m-d' ),
 				'end_date'   => $current_end->format( 'Y-m-d' ),
 			),
-			'sources'       => $comparisons,
+			'sources'      => $comparisons,
 		);
 	}
 
@@ -121,11 +121,11 @@ class RevisionPerformanceMonitor {
 	 */
 	private function empty_aggregate(): array {
 		return array(
-			'impressions'      => null,
-			'clicks'           => null,
-			'ctr'              => null,
-			'position_avg'     => null,
-			'days_with_data'   => 0,
+			'impressions'       => null,
+			'clicks'            => null,
+			'ctr'               => null,
+			'position_avg'      => null,
+			'days_with_data'    => 0,
 			'first_metric_date' => null,
 			'last_metric_date'  => null,
 		);

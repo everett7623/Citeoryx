@@ -34,11 +34,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check project consistency
+        run: npm run check:project
+
       - name: Run JavaScript tests
         run: npm test -- --runInBand
 
       - name: Lint JavaScript
-        run: npm run lint:js -- --no-cache assets/src/admin
+        run: npm run lint:js -- --no-cache assets/src/admin bin/check-project-consistency.mjs
 
       - name: Lint CSS
         run: npm run lint:css -- assets/src/admin/style.css

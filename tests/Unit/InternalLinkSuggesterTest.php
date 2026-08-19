@@ -89,7 +89,7 @@ class InternalLinkSuggesterTest extends WP_UnitTestCase {
 		string $password = '',
 		string $language = 'en-US'
 	): ContentItem {
-		$post_id = self::factory()->post->create(
+		$post_id             = self::factory()->post->create(
 			array(
 				'post_title'    => $title,
 				'post_name'     => sanitize_title( $title ) . '-' . wp_generate_password( 6, false, false ),

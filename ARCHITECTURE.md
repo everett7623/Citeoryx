@@ -34,10 +34,10 @@ citeoryx/
 │   │   ├── Scan/
 │   │   ├── Analyze/
 │   │   ├── Notifications/
-│   │   ├── Prioritize/
 │   │   ├── Optimize/
-│   │   ├── Monitor/
-│   │   └── Export/
+│   │   ├── Planning/
+│   │   ├── Search/
+│   │   └── Settings/
 │   ├── Infrastructure/         # 技术实现
 │   │   ├── Database/
 │   │   ├── Queue/
@@ -46,24 +46,21 @@ citeoryx/
 │   │   ├── Encryption/
 │   │   └── Logging/
 │   ├── Integrations/           # 外部集成适配器
-│   │   ├── Google/
-│   │   ├── Bing/
 │   │   ├── SeoPlugins/
-│   │   ├── SearchProviders/
+│   │   ├── SearchConsole/
 │   │   └── AiProviders/
 │   ├── Rest/                   # REST 控制器与 Schema
 │   │   ├── Controllers/
 │   │   └── Router.php
 │   ├── Admin/                  # 后台菜单、资产、通知
-│   ├── Blocks/                 # Gutenberg 区块
 │   ├── Cli/                    # WP-CLI 命令
 │   └── Support/                # 隐私、工具函数
 ├── assets/
 │   ├── src/admin/              # React 管理后台源码
 │   └── build/                  # 构建产物
-├── templates/                  # 后台模板
 ├── languages/                  # 翻译文件
-├── tests/                      # 单元、集成、E2E 测试
+├── tests/                      # PHPUnit / WordPress 测试
+├── e2e/                        # Playwright 后台旅程
 └── vendor/                     # Composer 依赖
 ```
 

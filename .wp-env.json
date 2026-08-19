@@ -6,6 +6,8 @@
   "port": 8889,
   "testsPort": 8890,
   "config": {
+    "AUTOMATIC_UPDATER_DISABLED": true,
+    "WP_AUTO_UPDATE_CORE": false,
     "WP_DEBUG": true,
     "SCRIPT_DEBUG": false
   }

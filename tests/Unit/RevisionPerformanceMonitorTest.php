@@ -67,39 +67,56 @@ class RevisionPerformanceMonitorTest extends WP_UnitTestCase {
 			)
 		);
 
-		$published_at = date( 'Y-m-d H:i:s', current_time( 'timestamp' ) - ( 8 * DAY_IN_SECONDS ) );
+		$published    = current_datetime()->modify( '-8 days' );
+		$published_at = $published->format( 'Y-m-d H:i:s' );
 		$this->set_post_modified( $post->ID, $published_at );
-		$updated                    = get_post( $post->ID );
-		$item->content_hash         = hash( 'sha256', $updated->post_content );
-		$item->last_scanned_at      = current_time( 'mysql' );
+		$updated               = get_post( $post->ID );
+		$item->content_hash    = hash( 'sha256', $updated->post_content );
+		$item->last_scanned_at = current_time( 'mysql' );
 		$this->content_repo->save( $item );
 		$this->revision_drafts->record_verified_scan( $item->id );
 
 		$published_day = substr( $published_at, 0, 10 );
-		$baseline_day  = date( 'Y-m-d', strtotime( $published_day . ' -1 day' ) );
+		$baseline_day  = $published->modify( '-1 day' )->format( 'Y-m-d' );
 		$this->metrics->save(
 			$item->id,
 			$baseline_day,
 			'google_search_console',
-			array( 'impressions' => 100, 'clicks' => 10, 'position_avg' => 4 )
+			array(
+				'impressions'  => 100,
+				'clicks'       => 10,
+				'position_avg' => 4,
+			)
 		);
 		$this->metrics->save(
 			$item->id,
 			$published_day,
 			'google_search_console',
-			array( 'impressions' => 200, 'clicks' => 30, 'position_avg' => 2 )
+			array(
+				'impressions'  => 200,
+				'clicks'       => 30,
+				'position_avg' => 2,
+			)
 		);
 		$this->metrics->save(
 			$item->id,
 			$baseline_day,
 			'bing_webmaster_tools',
-			array( 'impressions' => 40, 'clicks' => 4, 'position_avg' => 7 )
+			array(
+				'impressions'  => 40,
+				'clicks'       => 4,
+				'position_avg' => 7,
+			)
 		);
 		$this->metrics->save(
 			$item->id,
 			$published_day,
 			'bing_webmaster_tools',
-			array( 'impressions' => 60, 'clicks' => 3, 'position_avg' => 8 )
+			array(
+				'impressions'  => 60,
+				'clicks'       => 3,
+				'position_avg' => 8,
+			)
 		);
 
 		$performance = $this->monitor->get_performance( $item->id );
@@ -121,7 +138,7 @@ class RevisionPerformanceMonitorTest extends WP_UnitTestCase {
 	 * @return ContentItem
 	 */
 	private function create_content(): ContentItem {
-		$post_id = self::factory()->post->create(
+		$post_id             = self::factory()->post->create(
 			array(
 				'post_status'  => 'publish',
 				'post_title'   => 'Original title',

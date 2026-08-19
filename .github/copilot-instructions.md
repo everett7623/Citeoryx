@@ -121,14 +121,15 @@ Adapters location: `src/Integrations/SeoPlugins/`
 ## Testing
 
 - Unit tests: `tests/Unit/` (PHPUnit)
-- Integration tests: `tests/Integration/` (WordPress + PHPUnit)
+- WordPress integration coverage: `tests/Unit/` (WordPress test suite + PHPUnit)
 - JS tests: `assets/src/admin/*.test.js` (Jest)
-- E2E tests: `tests/e2e/` (Playwright)
+- E2E tests: `e2e/` (Playwright)
 
 Run tests:
 ```bash
 composer test                    # All PHP tests
 npm test                         # All JS tests
+npm run check:project            # Version and repository hygiene checks
 vendor/bin/phpunit tests/Unit/ContentRepositoryTest.php  # Single test
 ```
 

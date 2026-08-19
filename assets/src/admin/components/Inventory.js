@@ -197,9 +197,17 @@ const Inventory = () => {
 							icon={ postList }
 							label={ __( '暂无内容资产', 'citeoryx' ) }
 							instructions={
-								appliedSearch || filters.status || filters.post_type
-									? __( '没有找到匹配的内容，请尝试调整筛选条件。', 'citeoryx' )
-									: __( '尚未发现任何内容资产。点击总览页的"开始扫描"按钮进行首次内容盘点。', 'citeoryx' )
+								appliedSearch ||
+								filters.status ||
+								filters.post_type
+									? __(
+											'没有找到匹配的内容，请尝试调整筛选条件。',
+											'citeoryx'
+									  )
+									: __(
+											'尚未发现任何内容资产。点击总览页的"开始扫描"按钮进行首次内容盘点。',
+											'citeoryx'
+									  )
 							}
 						/>
 					) }
@@ -208,33 +216,35 @@ const Inventory = () => {
 						<table className="wp-list-table widefat fixed striped table-view-list">
 							<thead>
 								<tr>
-								<th>{ __( 'URL', 'citeoryx' ) }</th>
-								<th>{ __( '类型', 'citeoryx' ) }</th>
-								<th>{ __( '状态', 'citeoryx' ) }</th>
-								<th>{ __( '健康分', 'citeoryx' ) }</th>
-								<th>{ __( 'AI 准备度', 'citeoryx' ) }</th>
-								<th>{ __( '更新于', 'citeoryx' ) }</th>
-							</tr>
-						</thead>
-						<tbody>
-							{ items.map( ( item ) => (
-								<tr key={ item.id }>
-									<td>
-										<a
-											href={ item.canonical_url }
-											target="_blank"
-											rel="noopener noreferrer"
-										>
-											{ item.canonical_url }
-										</a>
-									</td>
-									<td>{ item.post_type }</td>
-									<td>{ item.status }</td>
-									<td>{ item.health_score ?? '-' }</td>
-									<td>{ item.ai_readiness_score ?? '-' }</td>
-									<td>{ item.modified_at }</td>
+									<th>{ __( 'URL', 'citeoryx' ) }</th>
+									<th>{ __( '类型', 'citeoryx' ) }</th>
+									<th>{ __( '状态', 'citeoryx' ) }</th>
+									<th>{ __( '健康分', 'citeoryx' ) }</th>
+									<th>{ __( 'AI 准备度', 'citeoryx' ) }</th>
+									<th>{ __( '更新于', 'citeoryx' ) }</th>
 								</tr>
-							) ) }
+							</thead>
+							<tbody>
+								{ items.map( ( item ) => (
+									<tr key={ item.id }>
+										<td>
+											<a
+												href={ item.canonical_url }
+												target="_blank"
+												rel="noopener noreferrer"
+											>
+												{ item.canonical_url }
+											</a>
+										</td>
+										<td>{ item.post_type }</td>
+										<td>{ item.status }</td>
+										<td>{ item.health_score ?? '-' }</td>
+										<td>
+											{ item.ai_readiness_score ?? '-' }
+										</td>
+										<td>{ item.modified_at }</td>
+									</tr>
+								) ) }
 							</tbody>
 						</table>
 					) }

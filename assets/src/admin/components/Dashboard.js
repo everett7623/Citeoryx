@@ -140,7 +140,8 @@ const Dashboard = () => {
 				{ scanRun && (
 					<Notice status="info" isDismissible={ false }>
 						{ __( '扫描任务正在后台运行：', 'citeoryx' ) }{ ' ' }
-						{ scanRun.processed_items } / { scanRun.total_items || '—' }
+						{ scanRun.processed_items } /{ ' ' }
+						{ scanRun.total_items || '—' }
 					</Notice>
 				) }
 				<Placeholder

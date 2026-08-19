@@ -1,8 +1,8 @@
 # Citeoryx 开发进度
 
-> 最后更新：2026-07-25
+> 最后更新：2026-08-19
 
-> 当前发布版本：2.3.0
+> 当前发布版本：2.3.1
 > 下一开发目标：2.4.0
 
 ## 已完成功能
@@ -179,7 +179,7 @@
    - PDF 报告导出（已完成首版：浏览器端 A4 生成、中文渲染、自动分页与下载错误提示）
 
 3. **测试与质量**
-   - Playwright E2E 测试（已完成首版：wp-env、首次引导、规划/报告导航、PDF 下载与 CI 失败诊断）
+   - Playwright E2E 测试（已完成首版：wp-env、首次引导、扫描创建与进度轮询、问题查看与解决、规划/报告导航、PDF 下载与 CI 失败诊断）
 
 4. **优化工作台闭环**
    - Revision Diff 与安全创建修订（已完成首版：完整字段快照、差异预览、能力与对象权限、并发冲突、幂等提交）
@@ -198,11 +198,10 @@
 
 ## 已知限制
 
-- PHP 8.4 CLI 已可用；2026-07-22 已对项目全部 PHP 文件执行语法检查并通过。
-- GitHub Actions 已在 PHP 8.0–8.4、WordPress 6.6/latest 与 MySQL 8 矩阵中通过 PHPUnit、PHPCompatibility 和 WPCS（2026-07-22）。
-- 已将 TypeScript 固定为与 `@wordpress/scripts@27` 兼容的 5.4.x；Jest、JS lint、React 构建与 CSS lint 均已成功（2026-07-22）。
-- 本机 PHPUnit 因 PHP 8.4 CLI 未启用 `mbstring` 而在框架启动阶段停止；相关用例已提交，但本轮无法在本机执行。
-- 本机没有 Docker 命令，无法启动 wp-env；Playwright 配置、测试发现与静态检查已在本地验证，真实 WordPress 后台旅程由 CI 执行。
+- 本机 Docker 已验证 PHP 8.0.30 / WordPress 6.6.7：PHPUnit 101 项、392 个断言通过，125 个 PHP 文件通过 WPCS，PHP 8.0+ 兼容检查通过。
+- Jest 10 个套件、29 项测试通过；JavaScript/CSS lint、项目一致性检查与生产构建均通过。
+- Playwright 5 条真实后台旅程已分别在 WordPress 6.6.7 和 7.0.4 通过，覆盖首次画像、扫描创建与进度轮询、问题查看与解决、规划/报告导航与 PDF 下载。
+- GitHub Actions 保持 PHP 8.0–8.4、WordPress 6.6/latest 与 MySQL 8 测试矩阵；本轮未触发远端工作流。
 - Google 每个内容 URL/日期保存前 100 个查询 × 国家 × 设备组合；Bing 查询统计由 API 返回自身日期（通常按周更新），且不提供国家和设备字段。
 - 搜索 API 暂时性失败最多同步尝试 3 次、单次等待最多 2 秒；凭据、权限等确定性 4xx 会立即失败并进入健康状态记录。
 - Google Search Console 需要在 Google Cloud Console 创建 OAuth Web Client，并将插件显示的 callback URI 加入授权重定向 URI。

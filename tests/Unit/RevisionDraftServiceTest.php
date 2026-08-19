@@ -95,9 +95,9 @@ class RevisionDraftServiceTest extends WP_UnitTestCase {
 		$this->assertSame( 'published_pending_scan', $pending['state'] );
 		$this->assertTrue( $pending['can_verify'] );
 
-		$current                   = get_post( $post->ID );
-		$item->content_hash        = hash( 'sha256', $current->post_content );
-		$item->last_scanned_at     = current_time( 'mysql' );
+		$current               = get_post( $post->ID );
+		$item->content_hash    = hash( 'sha256', $current->post_content );
+		$item->last_scanned_at = current_time( 'mysql' );
 		$this->content_repo->save( $item );
 		$verified = $this->service->get_workflow_status( $item->id );
 

@@ -1,28 +1,29 @@
 # Citeoryx 项目升级优化报告
 
 > 生成时间：2026-07-30
-> 当前版本：2.3.0
+> 最后验证：2026-08-19
+> 当前版本：2.3.1
 > 目标版本：2.4.0
 
 ## 执行摘要
 
-本次全面审查覆盖了 **87 个 PHP 文件**（约 1320 行核心代码）和 **27 个 React 组件**（约 4143 行前端代码）。
+本次全面审查及回归覆盖了 **125 个 PHP 文件**、**27 个 React 组件**和 5 条完整 WordPress 后台旅程。
 
 **总体评估：★★★★☆ (4/5)**
 
 ### 优点
 - ✅ JavaScript/CSS Lint 全部通过
-- ✅ Jest 测试 26 个全部通过（8 个测试套件）
-- ✅ 生产构建成功（81KB JS + 8.6KB CSS）
+- ✅ Jest 测试 29 个全部通过（10 个测试套件）
+- ✅ PHPUnit 101 项、392 个断言全部通过
+- ✅ WordPress 6.6.7 / 7.0.4 Playwright 旅程均通过
+- ✅ 生产构建成功（84.7 KiB JS + 9.73 KiB CSS）
 - ✅ REST API 架构清晰，权限控制完善
 - ✅ Repository 模式隔离良好
 - ✅ 数据库表设计合理，索引完整
 
-### 需要改进
-- ⚠️ 缺少 Composer/PHPUnit（本地环境限制）
-- ⚠️ 存在同步冲突文件（已清理）
-- ⚠️ error_log 调试代码需规范化
-- ⚠️ 部分组件用户体验可优化
+### 后续改进
+- ⚠️ 评估只读 REST 响应的短期缓存与失效策略
+- ⚠️ 数据量显著增长后评估虚拟列表或更细粒度分页
 
 ---
 
@@ -34,8 +35,8 @@
 |------|------|------|
 | ESLint | ✅ 通过 | 无警告和错误 |
 | Stylelint | ✅ 通过 | CSS 规范正确 |
-| Jest 测试 | ✅ 26/26 通过 | 覆盖核心逻辑 |
-| 构建产物 | ✅ 113KB | 已压缩优化 |
+| Jest 测试 | ✅ 29/29 通过 | 10 个测试套件 |
+| 构建产物 | ✅ 84.7 KiB JS + 9.73 KiB CSS | 已压缩优化 |
 | 调试代码 | ✅ 无 | 无 console.log |
 | TODO/FIXME | ✅ 0 | 无待办标记 |
 
@@ -45,14 +46,15 @@
 
 | 指标 | 结果 | 说明 |
 |------|------|------|
-| WPCS | ⚠️ 未运行 | Composer 未安装 |
-| PHPUnit | ⚠️ 未运行 | Composer 未安装 |
+| WPCS | ✅ 通过 | 125 个 PHP 文件 |
+| PHPUnit | ✅ 101/101 通过 | 392 个断言，WordPress 6.6.7 / PHP 8.0.30 |
+| PHPCompatibility | ✅ 通过 | PHP 8.0+ |
 | SQL 注入防护 | ✅ 良好 | 全部使用 prepare() |
 | 权限验证 | ✅ 完善 | 所有端点已校验 |
 | 类型声明 | ✅ 完整 | PHP 8.0+ 类型 |
 | PHPDoc | ⚠️ 部分缺失 | 需补充注释 |
 
-**评级：B+（良好）**
+**评级：A（优秀）**
 
 ### 1.3 数据库设计
 
@@ -96,19 +98,13 @@ $wpdb->prepare(
 - `content_author_scope()` - 作者范围限制
 - `can_access_content()` - 对象级权限
 
-#### ⚠️ 调试日志规范化
-**优先级：P2（本月修复）**
+#### ✅ 调试日志规范化
+**状态：已完成**
 
-**问题：** 4 处使用 `error_log()` 调试输出
-- `src/Application/Notifications/CriticalIssueNotifier.php:40`
-- `src/Infrastructure/Queue/AiAnalysisQueue.php:83`
-- `src/Rest/Controllers/SettingsController.php:127`
-- `src/Rest/Controllers/SettingsController.php:149`
-
-**建议：** 统一使用 WordPress 日志机制或创建专用 Logger 类
+业务层统一通过 `src/Infrastructure/Logging/Logger.php` 输出结构化上下文，并仅在 WordPress 调试配置允许时写入错误日志。
 
 ```php
-// 建议实现
+// 当前实现
 namespace Citeoryx\Infrastructure\Logging;
 
 class Logger {
@@ -186,10 +182,10 @@ public function get_dashboard(): WP_REST_Response {
 
 统一使用 `getApiErrorMessage()` 处理错误。
 
-#### ⚠️ 空状态提示
-**优先级：P2（本月修复）**
+#### ✅ 空状态提示
+**状态：已完成**
 
-**建议：** 为空列表添加友好的空状态提示
+**实现：** Dashboard、Inventory 与 Issues 已使用 WordPress Placeholder 展示可操作的空状态。
 
 ```javascript
 // 建议实现
@@ -206,10 +202,10 @@ public function get_dashboard(): WP_REST_Response {
 )}
 ```
 
-#### ⚠️ 表单验证反馈
-**优先级：P2（本月修复）**
+#### ✅ 表单验证反馈
+**状态：已完成**
 
-**建议：** 为表单字段添加实时验证提示
+**实现：** Onboarding 与共享站点画像字段已提供 blur 校验、错误文案和错误样式。
 
 ```javascript
 // 建议在 Onboarding.js 中实现
@@ -227,10 +223,10 @@ const validateField = (name, value) => {
 };
 ```
 
-#### ⚠️ 移动端响应式
-**优先级：P2（本月修复）**
+#### ✅ 移动端响应式
+**状态：已完成**
 
-**建议：** 优化小屏幕上的双栏布局
+**实现：** WordPress 后台 782px 与 600px 断点已覆盖优化器、集成、报告和规划布局。
 
 ```css
 /* 建议在 style.css 中添加 */
@@ -297,29 +293,9 @@ public function mark_running(int $id): bool {
 ### P1：本周修复（0 项）
 ✅ 无紧急问题
 
-### P2：本月修复（4 项）
+### P2：本月修复（0 项）
 
-1. **规范化调试日志**
-   - 文件：4 个文件
-   - 工作量：1小时
-   - 创建统一 Logger 类
-
-2. **添加空状态提示**
-   - 文件：`Dashboard.js`, `Inventory.js`, `Issues.js`, `Planning.js`
-   - 工作量：2小时
-   - 使用 WordPress Placeholder 组件
-
-3. **表单实时验证**
-   - 文件：`Onboarding.js`, `Settings.js`
-   - 工作量：2小时
-   - 添加字段级错误提示
-
-4. **移动端响应式优化**
-   - 文件：`style.css`
-   - 工作量：2小时
-   - 添加媒体查询
-
-**总计：7小时**
+✅ 统一日志、空状态、表单字段反馈和移动端响应式均已完成。
 
 ### P3：未来优化（2 项）
 
@@ -333,7 +309,7 @@ public function mark_running(int $id): bool {
 
 ---
 
-## 四、具体修复计划
+## 四、已完成修复记录
 
 ### 4.1 规范化调试日志
 
@@ -500,7 +476,7 @@ const validateField = (name, value) => {
 # Jest 测试（已通过）
 npm test
 
-# PHPUnit 测试（需要 Composer）
+# PHPUnit 测试（已通过）
 composer test
 ```
 
@@ -513,14 +489,15 @@ npm run test:e2e
 
 ### 5.3 手动测试清单
 
-- [ ] 首次安装流程
-- [ ] 扫描任务创建和轮询
+- [x] 首次安装流程
+- [x] 扫描任务创建和轮询
+- [x] 问题查看、解决和状态筛选
 - [ ] 优化器工作流
 - [ ] AI 分析任务
-- [ ] 报告导出（CSV/PDF）
-- [ ] 移动端响应式
-- [ ] 空状态显示
-- [ ] 表单验证提示
+- [x] 报告导出（CSV/PDF）
+- [x] 移动端响应式
+- [x] 空状态显示
+- [x] 表单验证提示
 
 ---
 
@@ -528,7 +505,7 @@ npm run test:e2e
 
 ### 6.1 版本规划
 
-**2.3.1（修复版本）** - 预计 1 周
+**2.3.1（当前修复版本）** - 已完成
 - 规范化调试日志
 - 清理同步冲突文件
 - 文档更新
@@ -541,10 +518,10 @@ npm run test:e2e
 
 ### 6.2 发布检查清单
 
-- [ ] 运行所有测试
-- [ ] 更新 CHANGELOG.md
-- [ ] 更新版本号（citeoryx.php, package.json, readme.txt）
-- [ ] 生成构建产物（npm run build）
+- [x] 运行所有测试
+- [x] 更新 CHANGELOG.md
+- [x] 更新版本号（citeoryx.php, package.json, readme.txt）
+- [x] 生成构建产物（npm run build）
 - [ ] Git 标签和发布说明
 - [ ] WordPress.org 插件提交
 
@@ -562,19 +539,17 @@ npm run test:e2e
 5. 前端组件化良好，无明显错误
 
 **改进空间：**
-1. 用户体验细节优化（空状态、实时验证）
-2. 移动端响应式适配
-3. 日志规范化
-4. 性能缓存优化
+1. 只读 REST 响应缓存及可靠失效
+2. 大数据量列表渲染与分页性能
 
 **建议行动：**
-1. **立即：** 清理同步冲突文件（✅ 已完成）
-2. **本周：** 规范化调试日志
-3. **本月：** 完成 P2 优先级的 4 项改进
-4. **持续：** 增加测试覆盖率，监控性能指标
+1. **已完成：** 清理同步冲突文件与生成产物
+2. **已完成：** P2 用户体验及日志规范化
+3. **下一步：** 设计带明确失效边界的只读响应缓存
+4. **持续：** 增加真实后台旅程与性能指标覆盖
 
 ---
 
 **报告生成者：** Claude Code (Opus 4.8)
-**审查范围：** 87 个 PHP 文件 + 27 个 React 组件
-**审查方法：** 静态代码分析 + 自动化测试 + 手动审查
+**审查范围：** 125 个 PHP 文件 + 27 个 React 组件 + 5 条 Playwright 旅程
+**审查方法：** 静态代码分析 + PHPUnit/Jest + 双 WordPress 版本 E2E + 手动审查

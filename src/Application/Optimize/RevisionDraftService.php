@@ -89,7 +89,7 @@ class RevisionDraftService {
 
 		$matches_base     = 64 === strlen( $base_hash ) && hash_equals( $base_hash, $current_hash );
 		$matches_proposal = 64 === strlen( $proposal_hash ) && hash_equals( $proposal_hash, $current_hash );
-		$scan_current      = $matches_proposal && $this->scan_matches_post( $item, $post );
+		$scan_current     = $matches_proposal && $this->scan_matches_post( $item, $post );
 
 		if ( $matches_base ) {
 			$state = 'awaiting_review';

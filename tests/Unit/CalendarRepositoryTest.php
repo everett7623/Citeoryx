@@ -34,23 +34,27 @@ class CalendarRepositoryTest extends WP_UnitTestCase {
 	 * @return void
 	 */
 	public function test_find_scheduled_uses_wordpress_future_posts(): void {
-		$post_id = self::factory()->post->create(
+		$publish_at = current_datetime()->modify( '+7 days' );
+		$post_id    = self::factory()->post->create(
 			array(
 				'post_title'  => 'Scheduled content',
 				'post_status' => 'future',
-				'post_date'   => '2026-08-01 09:00:00',
+				'post_date'   => $publish_at->format( 'Y-m-d H:i:s' ),
 			)
 		);
 
 		$result = ( new CalendarRepository() )->find_scheduled(
 			array( 'post' ),
-			'2026-07-22 00:00:00',
-			'2026-08-31 23:59:59'
+			$publish_at->modify( '-1 day' )->format( 'Y-m-d H:i:s' ),
+			$publish_at->modify( '+1 day' )->format( 'Y-m-d H:i:s' )
 		);
 
 		$this->assertCount( 1, $result['items'] );
 		$this->assertSame( $post_id, $result['items'][0]['id'] );
-		$this->assertStringStartsWith( '2026-08-01T09:00:00', $result['items'][0]['publish_at'] );
+		$this->assertStringStartsWith(
+			$publish_at->format( 'Y-m-d\TH:i:s' ),
+			$result['items'][0]['publish_at']
+		);
 	}
 
 	/**

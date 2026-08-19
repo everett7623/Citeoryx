@@ -299,6 +299,7 @@
 
 /* 移动端响应式优化 */
 @media (max-width: 782px) {
+
 	/* WordPress 后台断点 */
 	.citeoryx-optimizer-workspace,
 	.citeoryx-optimizer__workspace {
@@ -334,6 +335,7 @@
 }
 
 @media (max-width: 600px) {
+
 	.citeoryx-report-stats,
 	.citeoryx-stat-grid {
 		grid-template-columns: 1fr;

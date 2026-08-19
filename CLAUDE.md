@@ -133,9 +133,9 @@ Citeoryx 默认**只读取、不重复输出**前台 SEO 标签：
 ## 测试结构
 
 - `tests/Unit/` - PHPUnit 单元测试
-- `tests/Integration/` - WordPress 集成测试
+- `tests/Unit/` - 同时通过 WordPress 官方测试套件覆盖集成行为
 - `assets/src/admin/*.test.js` - Jest 单元测试
-- `tests/e2e/` - Playwright E2E 测试
+- `e2e/` - Playwright E2E 测试
 
 运行单个 PHPUnit 测试：
 

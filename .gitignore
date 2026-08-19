@@ -2,6 +2,8 @@
 /node_modules/
 /assets/build/
 /tests/coverage/
+/coverage/
+/output/
 /e2e/.auth/
 /playwright-report/
 /test-results/

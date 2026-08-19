@@ -320,13 +320,13 @@ npm run env:stop      # 停止本地环境
 
 ### 集成测试
 
-- **位置**: `tests/Integration/`
+- **位置**: 当前与 PHPUnit 测试统一放在 `tests/Unit/`，由 WordPress 官方测试环境启动
 - 测试 WordPress 集成点（Hook、Filter、Shortcode）
 - 测试完整的 REST API 流程
 
 ### E2E 测试
 
-- **位置**: `tests/e2e/`
+- **位置**: `e2e/`
 - **工具**: Playwright
 - 测试关键用户流程（扫描、优化、报告）
 

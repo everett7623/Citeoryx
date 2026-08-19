@@ -18,8 +18,11 @@
 - 周报调度、周期幂等和邮件请求契约。
 - Settings 首次加载不受可选通知状态异常影响，管理端不会直接显示 HTML 错误正文。
 - Revision 创建不修改父内容，并覆盖并发冲突、重复提交幂等、HTML 清洗和对象级权限。
+- 问题状态切换只接受最新列表请求，较早响应不会覆盖当前筛选结果。
 
-### 集成测试
+### WordPress 集成覆盖
+
+当前 PHP 测试统一位于 `tests/Unit/`，但通过 WordPress 官方测试环境启动插件、安装数据库表并执行真实 WordPress API 和数据库操作。仓库暂未拆分独立的 `tests/Integration/` 测试套件。
 
 覆盖：
 
@@ -30,7 +33,7 @@
 - SEO Plugin Adapters；
 - 数据库迁移；
 - 多语言；
-- WooCommerce。
+- WooCommerce 兼容逻辑。
 
 ### E2E
 
@@ -38,13 +41,13 @@
 
 - 安装向导完成站点画像；
 - 内容规划与报告页签加载；
-- PDF 报告生成与下载文件校验。
+- PDF 报告生成与下载文件校验；
+- 扫描任务创建与进度轮询；
+- 问题列表查看、解决与状态筛选。
 
 后续旅程规划覆盖：
 
 - 连接 GSC；
-- 启动扫描；
-- 查看问题；
 - 生成 AI 建议；
 - 创建 Revision；
 - 发布；
@@ -58,6 +61,9 @@ vendor/bin/phpunit
 
 # JavaScript 测试
 npm run test
+
+# 项目版本与仓库卫生检查
+npm run check:project
 
 # 代码规范检查
 composer phpcs
@@ -73,9 +79,15 @@ npm run env:stop
 ```
 
 E2E 使用 `.wp-env.json` 启动 WordPress 6.6 / PHP 8.0，默认地址为
-`http://localhost:8889`。测试会激活 Citeoryx、重置站点画像，并使用 wp-env
-默认管理员完成真实后台旅程。失败时可在 `playwright-report/` 和
-`test-results/` 查看 HTML 报告、截图、视频和 trace。
+`http://localhost:8889`。测试会激活 Citeoryx、重置站点画像、隔离扫描旅程中
+上次运行遗留的活动任务，并使用 wp-env 默认管理员完成真实后台旅程。失败时可在
+`playwright-report/` 和 `test-results/` 查看 HTML 报告、截图、视频和 trace。
+
+如需改用 wp-env 测试站，页面地址和 WP-CLI 目标必须同时切换：
+
+```bash
+CITEORYX_E2E_BASE_URL=http://localhost:8890 CITEORYX_E2E_WP_ENV=tests-cli npm run test:e2e
+```
 
 首次运行 PHP 测试前，需要可用的 MySQL 和 Bash 环境：
 

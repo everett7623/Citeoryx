@@ -10,7 +10,13 @@ const withPlaceholder = ( options ) => [
 	...( options || [] ),
 ];
 
-const SiteProfileFields = ( { profile, options, onChange, onValidate, errors = {} } ) => {
+const SiteProfileFields = ( {
+	profile,
+	options,
+	onChange,
+	onValidate,
+	errors = {},
+} ) => {
 	const update = ( key, value ) => onChange( { ...profile, [ key ]: value } );
 
 	const handleBlur = ( key, value ) => {
@@ -45,12 +51,18 @@ const SiteProfileFields = ( { profile, options, onChange, onValidate, errors = {
 				value={ profile.primary_goal || '' }
 				options={ withPlaceholder( options.primary_goals ) }
 				onChange={ ( value ) => update( 'primary_goal', value ) }
-				onBlur={ () => handleBlur( 'primary_goal', profile.primary_goal ) }
+				onBlur={ () =>
+					handleBlur( 'primary_goal', profile.primary_goal )
+				}
 				help={ errors.primary_goal }
 				className={ errors.primary_goal ? 'has-error' : '' }
 				__nextHasNoMarginBottom
 			/>
-			<fieldset className={ `citeoryx-content-types${ errors.core_content_types ? ' has-error' : '' }` }>
+			<fieldset
+				className={ `citeoryx-content-types${
+					errors.core_content_types ? ' has-error' : ''
+				}` }
+			>
 				<legend>{ __( '核心内容类型', 'citeoryx' ) }</legend>
 				{ ( options.content_types || [] ).map( ( option ) => (
 					<CheckboxControl
@@ -64,7 +76,9 @@ const SiteProfileFields = ( { profile, options, onChange, onValidate, errors = {
 							// 验证内容类型
 							const newTypes = checked
 								? [ ...selectedContentTypes, option.value ]
-								: selectedContentTypes.filter( ( item ) => item !== option.value );
+								: selectedContentTypes.filter(
+										( item ) => item !== option.value
+								  );
 							handleBlur( 'core_content_types', newTypes );
 						} }
 						__nextHasNoMarginBottom
@@ -81,12 +95,22 @@ const SiteProfileFields = ( { profile, options, onChange, onValidate, errors = {
 					label={ __( '主要语言', 'citeoryx' ) }
 					value={ profile.main_language || '' }
 					onChange={ ( value ) => update( 'main_language', value ) }
+					onBlur={ () =>
+						handleBlur( 'main_language', profile.main_language )
+					}
+					help={ errors.main_language }
+					className={ errors.main_language ? 'has-error' : '' }
 					__nextHasNoMarginBottom
 				/>
 				<TextControl
 					label={ __( '主要地区', 'citeoryx' ) }
 					value={ profile.main_region || '' }
 					onChange={ ( value ) => update( 'main_region', value ) }
+					onBlur={ () =>
+						handleBlur( 'main_region', profile.main_region )
+					}
+					help={ errors.main_region }
+					className={ errors.main_region ? 'has-error' : '' }
 					__nextHasNoMarginBottom
 				/>
 				<SelectControl
@@ -94,6 +118,11 @@ const SiteProfileFields = ( { profile, options, onChange, onValidate, errors = {
 					value={ profile.update_rhythm || '' }
 					options={ withPlaceholder( options.update_rhythms ) }
 					onChange={ ( value ) => update( 'update_rhythm', value ) }
+					onBlur={ () =>
+						handleBlur( 'update_rhythm', profile.update_rhythm )
+					}
+					help={ errors.update_rhythm }
+					className={ errors.update_rhythm ? 'has-error' : '' }
 					__nextHasNoMarginBottom
 				/>
 				<SelectControl
@@ -101,6 +130,11 @@ const SiteProfileFields = ( { profile, options, onChange, onValidate, errors = {
 					value={ profile.risk_level || '' }
 					options={ withPlaceholder( options.risk_levels ) }
 					onChange={ ( value ) => update( 'risk_level', value ) }
+					onBlur={ () =>
+						handleBlur( 'risk_level', profile.risk_level )
+					}
+					help={ errors.risk_level }
+					className={ errors.risk_level ? 'has-error' : '' }
 					__nextHasNoMarginBottom
 				/>
 				<SelectControl
@@ -115,6 +149,14 @@ const SiteProfileFields = ( { profile, options, onChange, onValidate, errors = {
 					onChange={ ( value ) =>
 						update( 'review_cycle_days', Number( value ) )
 					}
+					onBlur={ () =>
+						handleBlur(
+							'review_cycle_days',
+							profile.review_cycle_days
+						)
+					}
+					help={ errors.review_cycle_days }
+					className={ errors.review_cycle_days ? 'has-error' : '' }
 					__nextHasNoMarginBottom
 				/>
 			</div>

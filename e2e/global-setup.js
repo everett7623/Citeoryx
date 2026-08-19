@@ -1,10 +1,12 @@
 const fs = require( 'node:fs' );
 const path = require( 'node:path' );
 const { chromium } = require( '@playwright/test' );
+const { runWp } = require( './wp-env' );
 
 const authFile = path.join( __dirname, '.auth', 'admin.json' );
 
 module.exports = async ( config ) => {
+	runWp( [ 'plugin', 'activate', 'Citeoryx' ] );
 	fs.mkdirSync( path.dirname( authFile ), { recursive: true } );
 	const browser = await chromium.launch();
 	const page = await browser.newPage();

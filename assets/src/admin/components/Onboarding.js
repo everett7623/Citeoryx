@@ -41,14 +41,20 @@ const Onboarding = ( { initialData, onComplete } ) => {
 				if ( ! value || value.trim() === '' ) {
 					errorMessage = __( '请输入主要语言', 'citeoryx' );
 				} else if ( value.length > 20 ) {
-					errorMessage = __( '语言代码不能超过 20 个字符', 'citeoryx' );
+					errorMessage = __(
+						'语言代码不能超过 20 个字符',
+						'citeoryx'
+					);
 				}
 				break;
 			case 'main_region':
 				if ( ! value || value.trim() === '' ) {
 					errorMessage = __( '请输入主要地区', 'citeoryx' );
 				} else if ( value.length > 20 ) {
-					errorMessage = __( '地区代码不能超过 20 个字符', 'citeoryx' );
+					errorMessage = __(
+						'地区代码不能超过 20 个字符',
+						'citeoryx'
+					);
 				}
 				break;
 			case 'core_content_types':
@@ -61,10 +67,9 @@ const Onboarding = ( { initialData, onComplete } ) => {
 		setFieldErrors( ( prev ) => {
 			if ( errorMessage ) {
 				return { ...prev, [ fieldName ]: errorMessage };
-			} else {
-				const { [ fieldName ]: _, ...rest } = prev;
-				return rest;
 			}
+			const { [ fieldName ]: _, ...rest } = prev;
+			return rest;
 		} );
 
 		return errorMessage === null;
@@ -152,7 +157,9 @@ const Onboarding = ( { initialData, onComplete } ) => {
 					<SiteProfileFields
 						profile={ profile }
 						options={ profileOptions }
-						onChange={ setProfile }
+						onChange={ handleProfileChange }
+						onValidate={ validateField }
+						errors={ fieldErrors }
 					/>
 				</CardBody>
 			</Card>

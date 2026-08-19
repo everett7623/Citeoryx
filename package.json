@@ -10,6 +10,7 @@
     "env:stop": "npx --yes @wordpress/env@11.11.0 stop",
     "lint:js": "wp-scripts lint-js",
     "lint:css": "wp-scripts lint-style",
+    "check:project": "node bin/check-project-consistency.mjs",
     "test": "wp-scripts test-unit-js",
     "test:e2e": "playwright test"
   },

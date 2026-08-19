@@ -40,7 +40,7 @@
     "high_priority": [...],
     "recent_scans": [...],
     "seo_plugin": "rank-math",
-    "plugin_version": "2.3.0"
+    "plugin_version": "2.3.1"
   }
 }
 ```
@@ -74,7 +74,7 @@
       "top_items": []
     },
     "scans": { "recent": [] },
-    "plugin": { "version": "2.3.0", "seo_plugin": "rank-math" }
+    "plugin": { "version": "2.3.1", "seo_plugin": "rank-math" }
   }
 }
 ```
