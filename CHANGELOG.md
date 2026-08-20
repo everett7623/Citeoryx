@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- 新增 WordPress 核心版本与 `wordpress-develop` 测试 tag 的独立解析器及回归测试
 - 新增项目一致性检查，自动校验发布版本并阻止覆盖率与临时输出进入 Git
 - 新增 Onboarding 表单验证状态传递的前端回归测试
 - 新增可切换 `cli` / `tests-cli` 的 Playwright 环境目标，并在 WordPress 6.6.7 与 7.0.4 完成真实后台旅程验证
@@ -20,6 +21,7 @@
 - 内容资产、问题与机会列表固定使用每页 20 条的服务端分页；优化器内容选择器改为可翻页加载，不再一次请求 100 条内容
 
 ### Fixed
+- 修复 WordPress 最新主版本省略 `.0` 时，PHP CI 错误请求不存在的 `wordpress-develop` tag 并返回 404 的问题
 - 修复 Onboarding 已生成字段错误但未传递到站点画像表单的问题
 - 修复现有 JavaScript 与 CSS 代码规范错误
 - 修复 Windows Node.js 无法通过 `execFileSync` 直接执行 `npx.cmd` 的问题

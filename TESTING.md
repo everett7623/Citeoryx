@@ -28,6 +28,7 @@
 - 优化闭环面板卸载后会忽略未完成的状态响应，不会恢复已经切换离开的内容。
 - 创建 Revision、刷新闭环状态与重新扫描验证共享单一操作锁，任一流程完成前其余入口保持禁用。
 - GSC/Bing 状态回读保持 AI 表单挂载且不重复请求 AI 状态，尚未保存的 AI 字段不会被清空。
+- WordPress 测试环境会分别解析核心包版本与 `wordpress-develop` tag；例如当前最新版本使用核心 `7.1` 与测试套件 `7.1.0`。
 
 ### WordPress 集成覆盖
 
@@ -104,6 +105,8 @@ composer test
 ```
 
 GitHub Actions 会对 Node.js 前端检查、Chromium E2E，以及 PHP 8.0–8.4 / WordPress 6.6 和最新版本组合自动执行质量门禁。WPCS 使用项目级 `phpcs.xml.dist` 执行 `WordPress-Extra` 规则，并作为阻断条件运行；规则集仅排除与 Composer PSR-4 架构及既有领域代码风格冲突的文件命名、保留字参数名和短三元表达式规则。
+
+WordPress 版本 API 对整版发布使用 `X.Y`，而 `wordpress-develop` 使用 `X.Y.0` tag。`bin/install-wp-tests.sh` 会保留两个独立版本值，避免最新整版发布当天因测试 tag 地址不一致导致 404。
 
 ## PHP 测试配置
 

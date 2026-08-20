@@ -178,6 +178,8 @@
 | `assets/src/admin/components/OptimizerRevisionPanel.js` / `assets/src/admin/optimizerRevisionPanel.test.js` | 面板卸载后隔离旧闭环响应，并互斥执行 Revision 创建、状态刷新与重新扫描验证 |
 | `src/Infrastructure/Cache/RestResponseCache.php` | 缓存全站聚合 REST 响应，并通过唯一 token 提供并发可靠、批量合并的写后失效 |
 | `tests/Unit/RestResponseCacheTest.php` | 覆盖缓存命中、合并失效及四类聚合数据仓储写入后的刷新 |
+| `bin/resolve-wp-test-versions.php` / `bin/install-wp-tests.sh` | 分离 WordPress 整版核心版本与 `.0` 测试 tag，修复 latest PHP CI 下载 404 |
+| `tests/Unit/WordPressTestVersionResolverTest.php` | 覆盖 latest、整版、维护分支、显式补丁及无效版本解析 |
 
 ## 待开发 / 建议下一步
 
@@ -209,10 +211,10 @@
 
 ## 已知限制
 
-- 本机 Docker 已验证 PHP 8.0.30 / WordPress 6.6.7：PHPUnit 105 项、403 个断言通过，127 个 PHP 文件通过 WPCS，PHP 8.0+ 兼容检查通过。
+- 本机 Docker 已验证 PHP 8.0.30 / WordPress 7.1：PHPUnit 110 项、409 个断言通过，129 个 PHP 文件通过 WPCS；PHP 8.0+ 兼容检查保持通过。
 - Jest 16 个套件、40 项测试通过；JavaScript/CSS lint、项目一致性检查与生产构建均通过。
 - Playwright 7 条真实后台旅程已分别在 WordPress 6.6.7 和 7.0.4 通过，覆盖首次画像、扫描创建与进度轮询、问题查看与解决、规划/报告导航、PDF 下载、优化器规则建议、安全 Revision、模拟人工审核发布、真实重新扫描验证、GSC/Bing 7/28 天效果展示，以及 AI 后台任务创建、轮询与结果展示；AI 旅程仅对外部提供商响应使用确定性浏览器 mock。
-- GitHub Actions 保持 PHP 8.0–8.4、WordPress 6.6/latest 与 MySQL 8 测试矩阵；本轮未触发远端工作流。
+- GitHub Actions 保持 PHP 8.0–8.4、WordPress 6.6/latest 与 MySQL 8 测试矩阵；远端 `172b0b7` 运行因 WordPress 7.1 核心版本与 `wordpress-develop` tag 命名不一致而在安装阶段失败，本地修复已通过完整 latest 安装与测试，尚未触发新的远端运行。
 - Google 每个内容 URL/日期保存前 100 个查询 × 国家 × 设备组合；Bing 查询统计由 API 返回自身日期（通常按周更新），且不提供国家和设备字段。
 - 搜索 API 暂时性失败最多同步尝试 3 次、单次等待最多 2 秒；凭据、权限等确定性 4xx 会立即失败并进入健康状态记录。
 - Google Search Console 需要在 Google Cloud Console 创建 OAuth Web Client，并将插件显示的 callback URI 加入授权重定向 URI。

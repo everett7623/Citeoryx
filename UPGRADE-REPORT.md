@@ -7,14 +7,14 @@
 
 ## 执行摘要
 
-本次全面审查及回归覆盖了 **127 个 PHP 文件**、**27 个 React 组件**和 7 条完整 WordPress 后台旅程。
+本次全面审查及回归覆盖了 **129 个 PHP 文件**、**27 个 React 组件**和 7 条完整 WordPress 后台旅程。
 
 **总体评估：★★★★☆ (4/5)**
 
 ### 优点
 - ✅ JavaScript/CSS Lint 全部通过
 - ✅ Jest 测试 40 个全部通过（16 个测试套件）
-- ✅ PHPUnit 105 项、403 个断言全部通过
+- ✅ PHPUnit 110 项、409 个断言全部通过
 - ✅ WordPress 6.6.7 / 7.0.4 Playwright 旅程均通过
 - ✅ 生产构建成功（86.3 KiB JS + 9.73 KiB CSS）
 - ✅ REST API 架构清晰，权限控制完善
@@ -45,8 +45,8 @@
 
 | 指标 | 结果 | 说明 |
 |------|------|------|
-| WPCS | ✅ 通过 | 127 个 PHP 文件 |
-| PHPUnit | ✅ 105/105 通过 | 403 个断言，WordPress 6.6.7 / PHP 8.0.30 |
+| WPCS | ✅ 通过 | 129 个 PHP 文件 |
+| PHPUnit | ✅ 110/110 通过 | 409 个断言，WordPress 7.1 / PHP 8.0.30 |
 | PHPCompatibility | ✅ 通过 | PHP 8.0+ |
 | SQL 注入防护 | ✅ 良好 | 全部使用 prepare() |
 | 权限验证 | ✅ 完善 | 所有端点已校验 |
@@ -514,5 +514,5 @@ npm run test:e2e
 ---
 
 **报告生成者：** Claude Code (Opus 4.8)
-**审查范围：** 127 个 PHP 文件 + 27 个 React 组件 + 7 条 Playwright 旅程
+**审查范围：** 129 个 PHP 文件 + 27 个 React 组件 + 7 条 Playwright 旅程
 **审查方法：** 静态代码分析 + PHPUnit/Jest + 双 WordPress 版本 E2E + 手动审查

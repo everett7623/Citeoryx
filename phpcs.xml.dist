@@ -4,6 +4,7 @@
 
 	<file>citeoryx.php</file>
 	<file>uninstall.php</file>
+	<file>bin/resolve-wp-test-versions.php</file>
 	<file>src</file>
 	<file>tests</file>
 
@@ -22,5 +23,13 @@
 		<!-- These PSR-style idioms are used deliberately throughout the domain layer. -->
 		<exclude name="Universal.NamingConventions.NoReservedKeywordParameterNames" />
 		<exclude name="Universal.Operators.DisallowShortTernary" />
+	</rule>
+
+	<!-- The standalone test installer runs before WordPress APIs are available. -->
+	<rule ref="WordPress.Security.EscapeOutput">
+		<exclude-pattern>bin/resolve-wp-test-versions.php</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.WP.AlternativeFunctions">
+		<exclude-pattern>bin/resolve-wp-test-versions.php</exclude-pattern>
 	</rule>
 </ruleset>

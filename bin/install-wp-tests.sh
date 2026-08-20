@@ -13,6 +13,7 @@ DB_PASS="$3"
 DB_HOST="${4:-localhost}"
 WP_VERSION="${5:-latest}"
 SKIP_DB_CREATE="${6:-false}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 TMPDIR="${TMPDIR:-/tmp}"
 TMPDIR="${TMPDIR%/}"
@@ -23,31 +24,16 @@ download() {
 	curl --fail --location --silent --show-error "$1" --output "$2"
 }
 
-resolve_wordpress_version() {
+resolve_wordpress_versions() {
 	local versions_file="${TMPDIR}/wp-versions.json"
 	download 'https://api.wordpress.org/core/version-check/1.7/' "$versions_file"
-
-	php -r '
-$data = json_decode( file_get_contents( $argv[1] ), true );
-$requested = $argv[2];
-if ( preg_match( "/^[0-9]+\\.[0-9]+\\.[0-9]+$/", $requested ) ) {
-	echo $requested;
-	exit( 0 );
-}
-foreach ( $data["offers"] ?? array() as $offer ) {
-	$version = $offer["version"] ?? "";
-	if ( "latest" === $requested || str_starts_with( $version, $requested . "." ) ) {
-		echo $version;
-		exit( 0 );
-	}
-}
-fwrite( STDERR, "Unsupported WordPress version: {$requested}\n" );
-exit( 1 );
-' "$versions_file" "$WP_VERSION"
+	php "${SCRIPT_DIR}/resolve-wp-test-versions.php" "$versions_file" "$WP_VERSION"
 }
 
-RESOLVED_WP_VERSION="$(resolve_wordpress_version)"
-if [ -z "$RESOLVED_WP_VERSION" ]; then
+mapfile -t RESOLVED_WP_VERSIONS < <(resolve_wordpress_versions)
+RESOLVED_WP_VERSION="${RESOLVED_WP_VERSIONS[0]:-}"
+RESOLVED_WP_TESTS_VERSION="${RESOLVED_WP_VERSIONS[1]:-}"
+if [ -z "$RESOLVED_WP_VERSION" ] || [ -z "$RESOLVED_WP_TESTS_VERSION" ]; then
 	echo "Unable to resolve WordPress version: ${WP_VERSION}" >&2
 	exit 1
 fi
@@ -65,12 +51,12 @@ install_wordpress() {
 
 install_test_suite() {
 	local archive="${TMPDIR}/wordpress-develop.tar.gz"
-	local extracted="${TMPDIR}/wordpress-develop-${RESOLVED_WP_VERSION}"
+	local extracted="${TMPDIR}/wordpress-develop-${RESOLVED_WP_TESTS_VERSION}"
 
 	if [ ! -f "${WP_TESTS_DIR}/includes/functions.php" ]; then
 		rm -rf "$WP_TESTS_DIR" "$extracted"
 		mkdir -p "$WP_TESTS_DIR"
-		download "https://github.com/WordPress/wordpress-develop/archive/refs/tags/${RESOLVED_WP_VERSION}.tar.gz" "$archive"
+		download "https://github.com/WordPress/wordpress-develop/archive/refs/tags/${RESOLVED_WP_TESTS_VERSION}.tar.gz" "$archive"
 		tar -xzf "$archive" -C "$TMPDIR"
 		mv "${extracted}/tests/phpunit/includes" "$WP_TESTS_DIR/"
 		mv "${extracted}/tests/phpunit/data" "$WP_TESTS_DIR/"
@@ -78,7 +64,7 @@ install_test_suite() {
 	fi
 
 	if [ ! -f "${WP_TESTS_DIR}/wp-tests-config.php" ]; then
-		download "https://raw.githubusercontent.com/WordPress/wordpress-develop/${RESOLVED_WP_VERSION}/wp-tests-config-sample.php" "${WP_TESTS_DIR}/wp-tests-config.php"
+		download "https://raw.githubusercontent.com/WordPress/wordpress-develop/${RESOLVED_WP_TESTS_VERSION}/wp-tests-config-sample.php" "${WP_TESTS_DIR}/wp-tests-config.php"
 		sed -i "s|dirname( __FILE__ ) . '/src/'|'${WP_CORE_DIR}/'|" "${WP_TESTS_DIR}/wp-tests-config.php"
 		sed -i "s|__DIR__ . '/src/'|'${WP_CORE_DIR}/'|" "${WP_TESTS_DIR}/wp-tests-config.php"
 		sed -i "s/youremptytestdbnamehere/${DB_NAME}/" "${WP_TESTS_DIR}/wp-tests-config.php"
@@ -107,4 +93,4 @@ install_wordpress
 install_test_suite
 create_database
 
-echo "WordPress ${RESOLVED_WP_VERSION} test environment installed."
+echo "WordPress ${RESOLVED_WP_VERSION} core with ${RESOLVED_WP_TESTS_VERSION} test suite installed."
