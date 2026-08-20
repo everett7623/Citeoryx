@@ -1,4 +1,4 @@
-import { useState } from '@wordpress/element';
+import { useEffect, useRef, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import {
@@ -205,6 +205,7 @@ const RevisionWorkflowStatus = ( {
 	onRefresh,
 	onVerify,
 	refreshing,
+	submitting,
 	verifying,
 	workflow,
 } ) => {
@@ -234,7 +235,7 @@ const RevisionWorkflowStatus = ( {
 					variant="secondary"
 					onClick={ onRefresh }
 					isBusy={ refreshing }
-					disabled={ refreshing || verifying }
+					disabled={ refreshing || submitting || verifying }
 				>
 					{ refreshing
 						? __( '刷新中…', 'citeoryx' )
@@ -245,7 +246,7 @@ const RevisionWorkflowStatus = ( {
 						variant="secondary"
 						onClick={ onVerify }
 						isBusy={ verifying }
-						disabled={ refreshing || verifying }
+						disabled={ refreshing || submitting || verifying }
 					>
 						{ verifying
 							? __( '验证中…', 'citeoryx' )
@@ -280,11 +281,21 @@ const OptimizerRevisionPanel = ( {
 		initialPerformance || null
 	);
 	const [ submittedDraft, setSubmittedDraft ] = useState( '' );
+	const activeRef = useRef( true );
+	const operationRef = useRef( null );
 	const changes = getRevisionChanges( editor, draft );
 	const draftSignature = JSON.stringify( draft );
 	const resultMessage = result?.created
 		? __( '修订已创建，可在 WordPress 中比较并审核。', 'citeoryx' )
 		: __( '相同提案已存在，未重复创建修订。', 'citeoryx' );
+
+	useEffect( () => {
+		activeRef.current = true;
+
+		return () => {
+			activeRef.current = false;
+		};
+	}, [] );
 
 	const update = ( field, value ) => {
 		setDraft( ( current ) => ( { ...current, [ field ]: value } ) );
@@ -292,6 +303,10 @@ const OptimizerRevisionPanel = ( {
 	};
 
 	const submit = () => {
+		if ( operationRef.current ) {
+			return;
+		}
+		operationRef.current = 'submit';
 		setSubmitting( true );
 		setError( '' );
 		apiFetch( {
@@ -300,47 +315,84 @@ const OptimizerRevisionPanel = ( {
 			data: buildRevisionPayload( contentId, editor, draft ),
 		} )
 			.then( ( response ) => {
+				if ( ! activeRef.current ) {
+					return;
+				}
 				setResult( response.data.revision );
 				setWorkflow( response.data.workflow );
 				setSubmittedDraft( draftSignature );
 			} )
-			.catch( ( requestError ) =>
-				setError(
-					getApiErrorMessage(
-						requestError,
-						__( '无法创建修订，请稍后重试。', 'citeoryx' )
-					)
-				)
-			)
-			.finally( () => setSubmitting( false ) );
+			.catch( ( requestError ) => {
+				if ( activeRef.current ) {
+					setError(
+						getApiErrorMessage(
+							requestError,
+							__( '无法创建修订，请稍后重试。', 'citeoryx' )
+						)
+					);
+				}
+			} )
+			.finally( () => {
+				if ( operationRef.current === 'submit' ) {
+					operationRef.current = null;
+				}
+				if ( activeRef.current ) {
+					setSubmitting( false );
+				}
+			} );
 	};
 
-	const fetchWorkflow = () =>
-		apiFetch( { path: `citeoryx/v1/optimizer/${ contentId }` } ).then(
-			( response ) => {
-				setWorkflow( response.data.editor?.workflow || null );
-				setPerformance( response.data.revision_performance || null );
-				onDataRefresh( response.data );
+	const fetchWorkflow = () => {
+		if ( ! activeRef.current ) {
+			return Promise.resolve( null );
+		}
+
+		return apiFetch( {
+			path: `citeoryx/v1/optimizer/${ contentId }`,
+		} ).then( ( response ) => {
+			if ( ! activeRef.current ) {
 				return response;
 			}
-		);
+			setWorkflow( response.data.editor?.workflow || null );
+			setPerformance( response.data.revision_performance || null );
+			onDataRefresh( response.data );
+			return response;
+		} );
+	};
 
 	const refresh = () => {
+		if ( operationRef.current ) {
+			return;
+		}
+		operationRef.current = 'refresh';
 		setRefreshing( true );
 		setError( '' );
 		fetchWorkflow()
-			.catch( ( requestError ) =>
-				setError(
-					getApiErrorMessage(
-						requestError,
-						__( '无法刷新闭环状态，请稍后重试。', 'citeoryx' )
-					)
-				)
-			)
-			.finally( () => setRefreshing( false ) );
+			.catch( ( requestError ) => {
+				if ( activeRef.current ) {
+					setError(
+						getApiErrorMessage(
+							requestError,
+							__( '无法刷新闭环状态，请稍后重试。', 'citeoryx' )
+						)
+					);
+				}
+			} )
+			.finally( () => {
+				if ( operationRef.current === 'refresh' ) {
+					operationRef.current = null;
+				}
+				if ( activeRef.current ) {
+					setRefreshing( false );
+				}
+			} );
 	};
 
 	const verify = () => {
+		if ( operationRef.current ) {
+			return;
+		}
+		operationRef.current = 'verify';
 		setVerifying( true );
 		setError( '' );
 		apiFetch( {
@@ -348,15 +400,24 @@ const OptimizerRevisionPanel = ( {
 			method: 'POST',
 		} )
 			.then( fetchWorkflow )
-			.catch( ( requestError ) =>
-				setError(
-					getApiErrorMessage(
-						requestError,
-						__( '无法完成发布后验证，请稍后重试。', 'citeoryx' )
-					)
-				)
-			)
-			.finally( () => setVerifying( false ) );
+			.catch( ( requestError ) => {
+				if ( activeRef.current ) {
+					setError(
+						getApiErrorMessage(
+							requestError,
+							__( '无法完成发布后验证，请稍后重试。', 'citeoryx' )
+						)
+					);
+				}
+			} )
+			.finally( () => {
+				if ( operationRef.current === 'verify' ) {
+					operationRef.current = null;
+				}
+				if ( activeRef.current ) {
+					setVerifying( false );
+				}
+			} );
 	};
 
 	return (
@@ -368,6 +429,7 @@ const OptimizerRevisionPanel = ( {
 					onRefresh={ refresh }
 					onVerify={ verify }
 					refreshing={ refreshing }
+					submitting={ submitting }
 					verifying={ verifying }
 					workflow={ workflow }
 				/>
@@ -427,6 +489,8 @@ const OptimizerRevisionPanel = ( {
 					isBusy={ submitting }
 					disabled={
 						submitting ||
+						refreshing ||
+						verifying ||
 						! editor.revisions_enabled ||
 						changes.length === 0 ||
 						submittedDraft === draftSignature

@@ -14,6 +14,7 @@ use Citeoryx\Rest\Router;
 use Citeoryx\Infrastructure\Queue\Scheduler;
 use Citeoryx\Infrastructure\Queue\AiAnalysisQueue;
 use Citeoryx\Infrastructure\Database\SchemaManager;
+use Citeoryx\Infrastructure\Cache\RestResponseCache;
 use Citeoryx\Support\Privacy;
 use Citeoryx\Integrations\SearchConsole\GoogleOAuth;
 use Citeoryx\Application\Notifications\WeeklyDigest;
@@ -48,12 +49,23 @@ class Plugin {
 	 */
 	public function run(): void {
 		$this->set_locale();
+		$this->register_cache_invalidation();
 		$this->register_admin();
 		$this->register_rest();
 		$this->register_queue();
 		$this->register_privacy();
 		$this->run_migrations();
 		$this->register_cli();
+	}
+
+	/**
+	 * Invalidate aggregate payloads when detected SEO plugins change.
+	 *
+	 * @return void
+	 */
+	private function register_cache_invalidation(): void {
+		add_action( 'activated_plugin', array( RestResponseCache::class, 'invalidate' ), 10, 0 );
+		add_action( 'deactivated_plugin', array( RestResponseCache::class, 'invalidate' ), 10, 0 );
 	}
 
 	/**

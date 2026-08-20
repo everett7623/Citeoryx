@@ -1,29 +1,28 @@
 # Citeoryx 项目升级优化报告
 
 > 生成时间：2026-07-30
-> 最后验证：2026-08-19
+> 最后验证：2026-08-20
 > 当前版本：2.3.1
 > 目标版本：2.4.0
 
 ## 执行摘要
 
-本次全面审查及回归覆盖了 **125 个 PHP 文件**、**27 个 React 组件**和 5 条完整 WordPress 后台旅程。
+本次全面审查及回归覆盖了 **127 个 PHP 文件**、**27 个 React 组件**和 7 条完整 WordPress 后台旅程。
 
 **总体评估：★★★★☆ (4/5)**
 
 ### 优点
 - ✅ JavaScript/CSS Lint 全部通过
-- ✅ Jest 测试 29 个全部通过（10 个测试套件）
-- ✅ PHPUnit 101 项、392 个断言全部通过
+- ✅ Jest 测试 40 个全部通过（16 个测试套件）
+- ✅ PHPUnit 105 项、403 个断言全部通过
 - ✅ WordPress 6.6.7 / 7.0.4 Playwright 旅程均通过
-- ✅ 生产构建成功（84.7 KiB JS + 9.73 KiB CSS）
+- ✅ 生产构建成功（86.3 KiB JS + 9.73 KiB CSS）
 - ✅ REST API 架构清晰，权限控制完善
 - ✅ Repository 模式隔离良好
 - ✅ 数据库表设计合理，索引完整
 
 ### 后续改进
-- ⚠️ 评估只读 REST 响应的短期缓存与失效策略
-- ⚠️ 数据量显著增长后评估虚拟列表或更细粒度分页
+- 持续收集真实大站点的列表响应时间与浏览器渲染指标
 
 ---
 
@@ -35,8 +34,8 @@
 |------|------|------|
 | ESLint | ✅ 通过 | 无警告和错误 |
 | Stylelint | ✅ 通过 | CSS 规范正确 |
-| Jest 测试 | ✅ 29/29 通过 | 10 个测试套件 |
-| 构建产物 | ✅ 84.7 KiB JS + 9.73 KiB CSS | 已压缩优化 |
+| Jest 测试 | ✅ 40/40 通过 | 16 个测试套件 |
+| 构建产物 | ✅ 86.3 KiB JS + 9.73 KiB CSS | 已压缩优化 |
 | 调试代码 | ✅ 无 | 无 console.log |
 | TODO/FIXME | ✅ 0 | 无待办标记 |
 
@@ -46,8 +45,8 @@
 
 | 指标 | 结果 | 说明 |
 |------|------|------|
-| WPCS | ✅ 通过 | 125 个 PHP 文件 |
-| PHPUnit | ✅ 101/101 通过 | 392 个断言，WordPress 6.6.7 / PHP 8.0.30 |
+| WPCS | ✅ 通过 | 127 个 PHP 文件 |
+| PHPUnit | ✅ 105/105 通过 | 403 个断言，WordPress 6.6.7 / PHP 8.0.30 |
 | PHPCompatibility | ✅ 通过 | PHP 8.0+ |
 | SQL 注入防护 | ✅ 良好 | 全部使用 prepare() |
 | 权限验证 | ✅ 完善 | 所有端点已校验 |
@@ -116,7 +115,7 @@ class Logger {
 }
 ```
 
-### 2.2 性能问题（0 个严重，2 个建议）
+### 2.2 性能问题（0 个严重，0 个建议）
 
 #### ✅ 数据库查询优化
 **状态：良好**
@@ -125,45 +124,15 @@ class Logger {
 - 索引覆盖常用查询条件
 - 使用游标分页避免大 OFFSET
 
-#### ⚠️ REST API 响应缓存
-**优先级：P3（未来）**
+#### ✅ REST API 响应缓存
+**状态：已完成**
 
-**建议：** 为只读端点（如 `/dashboard`、`/reports/summary`）添加短期缓存
+`/dashboard` 与 `/reports/summary` 使用最长 5 分钟的版本化 Transient 缓存。内容、问题、扫描、指标和 SEO 插件状态写入会切换唯一缓存 token；批量任务在单个请求内合并失效，并在同请求再次读取前强制提交，兼顾写后读一致性与后台任务写入成本。
 
-```php
-// 建议实现
-public function get_dashboard(): WP_REST_Response {
-    $cache_key = 'citeoryx_dashboard_' . get_current_user_id();
-    $cached = wp_cache_get($cache_key);
-    
-    if (false !== $cached) {
-        return $this->success($cached);
-    }
-    
-    $data = $this->compute_dashboard();
-    wp_cache_set($cache_key, $data, '', 300); // 5分钟
-    
-    return $this->success($data);
-}
-```
+#### ✅ 前端组件渲染优化
+**状态：已完成**
 
-#### ⚠️ 前端组件渲染优化
-**优先级：P3（未来）**
-
-**建议：** 为大列表组件添加虚拟滚动或分页
-
-```javascript
-// 当前：一次渲染所有项
-{items.map(item => <ItemCard key={item.id} item={item} />)}
-
-// 建议：使用 @wordpress/components 的 Pagination
-<Pagination 
-    total={totalItems} 
-    perPage={perPage} 
-    currentPage={currentPage}
-    onPageChange={setCurrentPage}
-/>
-```
+内容资产、问题与机会列表均使用每页 20 条的服务端分页；优化器内容选择器由一次加载 100 条改为按 20 条翻页。内容资产、问题与规划请求带序列保护，优化分析在切换内容后也会丢弃较早响应，避免旧请求覆盖最新界面状态。
 
 ### 2.3 用户体验问题（0 个严重，3 个建议）
 
@@ -297,15 +266,9 @@ public function mark_running(int $id): bool {
 
 ✅ 统一日志、空状态、表单字段反馈和移动端响应式均已完成。
 
-### P3：未来优化（2 项）
+### P3：未来优化（0 项）
 
-1. **REST API 响应缓存**
-   - 工作量：4小时
-   - 使用 WordPress Transient API
-
-2. **前端虚拟滚动**
-   - 工作量：6小时
-   - 考虑引入 react-window
+✅ 已识别的 REST 聚合缓存与大列表分页优化均已完成。
 
 ---
 
@@ -492,8 +455,8 @@ npm run test:e2e
 - [x] 首次安装流程
 - [x] 扫描任务创建和轮询
 - [x] 问题查看、解决和状态筛选
-- [ ] 优化器工作流
-- [ ] AI 分析任务
+- [x] 优化器规则建议、安全 Revision、审核发布、重新扫描验证与效果对比工作流
+- [x] AI 分析任务创建、轮询和结果展示（外部提供商响应使用确定性 mock）
 - [x] 报告导出（CSV/PDF）
 - [x] 移动端响应式
 - [x] 空状态显示
@@ -539,17 +502,17 @@ npm run test:e2e
 5. 前端组件化良好，无明显错误
 
 **改进空间：**
-1. 只读 REST 响应缓存及可靠失效
-2. 大数据量列表渲染与分页性能
+暂无已识别的未完成代码问题；后续持续以真实大站点指标驱动优化。
 
 **建议行动：**
 1. **已完成：** 清理同步冲突文件与生成产物
 2. **已完成：** P2 用户体验及日志规范化
-3. **下一步：** 设计带明确失效边界的只读响应缓存
-4. **持续：** 增加真实后台旅程与性能指标覆盖
+3. **已完成：** 为全站聚合只读端点增加版本化缓存及合并失效
+4. **已完成：** 为大列表统一服务端分页，并防止列表及优化分析的过期请求响应覆盖最新状态
+5. **持续：** 增加真实后台旅程与性能指标覆盖
 
 ---
 
 **报告生成者：** Claude Code (Opus 4.8)
-**审查范围：** 125 个 PHP 文件 + 27 个 React 组件 + 5 条 Playwright 旅程
+**审查范围：** 127 个 PHP 文件 + 27 个 React 组件 + 7 条 Playwright 旅程
 **审查方法：** 静态代码分析 + PHPUnit/Jest + 双 WordPress 版本 E2E + 手动审查

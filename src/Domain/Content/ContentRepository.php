@@ -7,6 +7,8 @@
 
 namespace Citeoryx\Domain\Content;
 
+use Citeoryx\Infrastructure\Cache\RestResponseCache;
+
 /**
  * Repository for content items.
  */
@@ -136,6 +138,7 @@ class ContentRepository {
 				array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%s', '%f', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' ),
 				array( '%d' )
 			);
+			RestResponseCache::invalidate();
 			return $item->id;
 		}
 
@@ -145,6 +148,7 @@ class ContentRepository {
 			$data,
 			array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%s', '%f', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s' )
 		);
+		RestResponseCache::invalidate();
 
 		return (int) $wpdb->insert_id;
 	}

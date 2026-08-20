@@ -7,6 +7,8 @@
 
 namespace Citeoryx\Domain\Metrics;
 
+use Citeoryx\Infrastructure\Cache\RestResponseCache;
+
 /**
  * Repository for daily metrics.
  */
@@ -76,6 +78,7 @@ class MetricsRepository {
 				array( '%d', '%s', '%s', '%f', '%f', '%f', '%f', '%f', '%f', '%f', '%s' ),
 				array( '%d' )
 			);
+			RestResponseCache::invalidate();
 			return (int) $existing;
 		}
 
@@ -84,6 +87,7 @@ class MetricsRepository {
 			$data,
 			array( '%d', '%s', '%s', '%f', '%f', '%f', '%f', '%f', '%f', '%f', '%s' )
 		);
+		RestResponseCache::invalidate();
 
 		return (int) $wpdb->insert_id;
 	}
@@ -162,6 +166,10 @@ class MetricsRepository {
 			if ( false !== $inserted ) {
 				++$saved;
 			}
+		}
+
+		if ( $saved > 0 ) {
+			RestResponseCache::invalidate();
 		}
 
 		return $saved;

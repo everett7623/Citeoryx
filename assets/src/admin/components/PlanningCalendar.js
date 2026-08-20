@@ -62,7 +62,10 @@ const PlanningCalendar = () => {
 	return (
 		<div className="citeoryx-calendar">
 			<div className="citeoryx-dashboard__actions">
-				<Button onClick={ fetchCalendar } disabled={ loading }>
+				<Button
+					onClick={ fetchCalendar }
+					disabled={ loading || updating !== null }
+				>
 					{ loading
 						? __( '刷新中…', 'citeoryx' )
 						: __( '刷新发布与复核计划', 'citeoryx' ) }

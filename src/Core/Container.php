@@ -30,6 +30,7 @@ use Citeoryx\Domain\Metrics\MetricsRepository;
 use Citeoryx\Domain\Planning\OpportunityRepository;
 use Citeoryx\Domain\Planning\CalendarRepository;
 use Citeoryx\Domain\Scan\ScanRunRepository;
+use Citeoryx\Infrastructure\Cache\RestResponseCache;
 use Citeoryx\Infrastructure\Cache\Transients;
 use Citeoryx\Infrastructure\Http\HttpClient;
 use Citeoryx\Infrastructure\Encryption\KeyStore;
@@ -202,6 +203,8 @@ class Container {
 				);
 			case ScanRunRepository::class:
 				return new ScanRunRepository();
+			case RestResponseCache::class:
+				return new RestResponseCache( $this->get( Transients::class ) );
 			case Transients::class:
 				return new Transients();
 			case HttpClient::class:

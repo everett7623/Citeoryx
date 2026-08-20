@@ -67,7 +67,8 @@ const AiAnalysisPanel = ( { canManageIntegrations, contentId } ) => {
 		}
 
 		let cancelled = false;
-		const timer = window.setInterval( () => {
+		let timer;
+		const poll = () => {
 			apiFetch( {
 				path: getAiAnalysisPath( contentId, taskId ),
 			} )
@@ -86,12 +87,18 @@ const AiAnalysisPanel = ( { canManageIntegrations, contentId } ) => {
 							)
 						);
 					}
+				} )
+				.finally( () => {
+					if ( ! cancelled ) {
+						timer = window.setTimeout( poll, 2500 );
+					}
 				} );
-		}, 2500 );
+		};
+		timer = window.setTimeout( poll, 2500 );
 
 		return () => {
 			cancelled = true;
-			window.clearInterval( timer );
+			window.clearTimeout( timer );
 		};
 	}, [ active, contentId, taskId, taskStatus ] );
 

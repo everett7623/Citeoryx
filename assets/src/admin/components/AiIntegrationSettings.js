@@ -109,7 +109,7 @@ const AiIntegrationSettings = ( { ai, onSaved, setNotice } ) => {
 					status: 'success',
 					text: __( 'AI 设置已保存。现在可以测试连接。', 'citeoryx' ),
 				} );
-				onSaved();
+				return onSaved();
 			} )
 			.catch( ( error ) =>
 				setNotice( {

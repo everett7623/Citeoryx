@@ -1,4 +1,4 @@
-import { useState, useEffect } from '@wordpress/element';
+import { useState, useEffect, useCallback, useRef } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { getApiErrorMessage } from '../apiError';
@@ -28,14 +28,25 @@ const Optimizer = () => {
 	const [ loading, setLoading ] = useState( false );
 	const [ error, setError ] = useState( null );
 	const [ items, setItems ] = useState( [] );
+	const [ contentTotal, setContentTotal ] = useState( 0 );
+	const [ contentPage, setContentPage ] = useState( 1 );
 	const [ itemLoading, setItemLoading ] = useState( true );
+	const contentRequestIdRef = useRef( 0 );
+	const analysisRequestIdRef = useRef( 0 );
 	const workspaceClass = canUseAi
 		? 'citeoryx-optimizer__workspace'
 		: 'citeoryx-optimizer__workspace citeoryx-optimizer__workspace--rules-only';
 
-	useEffect( () => {
-		apiFetch( { path: 'citeoryx/v1/content?per_page=100' } )
+	const fetchContent = useCallback( ( currentPage ) => {
+		const requestId = ++contentRequestIdRef.current;
+		setItemLoading( true );
+		apiFetch( {
+			path: `citeoryx/v1/content?page=${ currentPage }&per_page=20`,
+		} )
 			.then( ( response ) => {
+				if ( requestId !== contentRequestIdRef.current ) {
+					return;
+				}
 				const list = response.data.items || [];
 				setItems(
 					list.map( ( item ) => ( {
@@ -43,8 +54,12 @@ const Optimizer = () => {
 						value: item.id.toString(),
 					} ) )
 				);
+				setContentTotal( response.data.total || 0 );
 			} )
 			.catch( ( requestError ) => {
+				if ( requestId !== contentRequestIdRef.current ) {
+					return;
+				}
 				setItems( [] );
 				setError(
 					getApiErrorMessage(
@@ -53,13 +68,29 @@ const Optimizer = () => {
 					)
 				);
 			} )
-			.finally( () => setItemLoading( false ) );
+			.finally( () => {
+				if ( requestId === contentRequestIdRef.current ) {
+					setItemLoading( false );
+				}
+			} );
 	}, [] );
 
+	useEffect( () => {
+		fetchContent( contentPage );
+	}, [ contentPage, fetchContent ] );
+
 	const selectContent = ( value ) => {
+		++analysisRequestIdRef.current;
 		setContentId( value );
 		setData( null );
 		setError( null );
+		setLoading( false );
+	};
+
+	const contentTotalPages = Math.ceil( contentTotal / 20 );
+	const changeContentPage = ( nextPage ) => {
+		selectContent( '' );
+		setContentPage( nextPage );
 	};
 
 	const analyze = () => {
@@ -67,16 +98,30 @@ const Optimizer = () => {
 			setError( __( '请选择要分析的内容。', 'citeoryx' ) );
 			return;
 		}
+		const requestId = ++analysisRequestIdRef.current;
 		setLoading( true );
 		setError( null );
 		apiFetch( { path: `citeoryx/v1/optimizer/${ contentId }` } )
-			.then( ( response ) => setData( response.data ) )
-			.catch( ( err ) =>
-				setError(
-					getApiErrorMessage( err, __( '分析失败。', 'citeoryx' ) )
-				)
-			)
-			.finally( () => setLoading( false ) );
+			.then( ( response ) => {
+				if ( requestId === analysisRequestIdRef.current ) {
+					setData( response.data );
+				}
+			} )
+			.catch( ( err ) => {
+				if ( requestId === analysisRequestIdRef.current ) {
+					setError(
+						getApiErrorMessage(
+							err,
+							__( '分析失败。', 'citeoryx' )
+						)
+					);
+				}
+			} )
+			.finally( () => {
+				if ( requestId === analysisRequestIdRef.current ) {
+					setLoading( false );
+				}
+			} );
 	};
 
 	const renderSelector = () => {
@@ -114,6 +159,29 @@ const Optimizer = () => {
 						? __( '分析中…', 'citeoryx' )
 						: __( '生成优化建议', 'citeoryx' ) }
 				</Button>
+				{ contentTotalPages > 1 && (
+					<div className="citeoryx-pagination">
+						<Button
+							disabled={ contentPage <= 1 || itemLoading }
+							onClick={ () =>
+								changeContentPage( contentPage - 1 )
+							}
+						>
+							{ __( '上一页', 'citeoryx' ) }
+						</Button>
+						<span>{ `${ contentPage } / ${ contentTotalPages }` }</span>
+						<Button
+							disabled={
+								contentPage >= contentTotalPages || itemLoading
+							}
+							onClick={ () =>
+								changeContentPage( contentPage + 1 )
+							}
+						>
+							{ __( '下一页', 'citeoryx' ) }
+						</Button>
+					</div>
+				) }
 			</div>
 		);
 	};

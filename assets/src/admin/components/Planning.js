@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from '@wordpress/element';
+import { useCallback, useEffect, useRef, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import {
@@ -44,8 +44,10 @@ const Planning = () => {
 	const [ page, setPage ] = useState( 1 );
 	const [ loading, setLoading ] = useState( true );
 	const [ error, setError ] = useState( null );
+	const requestIdRef = useRef( 0 );
 
 	const fetchOpportunities = useCallback( () => {
+		const requestId = ++requestIdRef.current;
 		setLoading( true );
 		setError( null );
 		const params = new URLSearchParams( {
@@ -59,16 +61,26 @@ const Planning = () => {
 			}
 		} );
 		apiFetch( { path: `citeoryx/v1/planning/opportunities?${ params }` } )
-			.then( ( response ) => setData( response.data ) )
-			.catch( ( err ) =>
-				setError(
-					getApiErrorMessage(
-						err,
-						__( '无法加载主题机会。', 'citeoryx' )
-					)
-				)
-			)
-			.finally( () => setLoading( false ) );
+			.then( ( response ) => {
+				if ( requestId === requestIdRef.current ) {
+					setData( response.data );
+				}
+			} )
+			.catch( ( err ) => {
+				if ( requestId === requestIdRef.current ) {
+					setError(
+						getApiErrorMessage(
+							err,
+							__( '无法加载主题机会。', 'citeoryx' )
+						)
+					);
+				}
+			} )
+			.finally( () => {
+				if ( requestId === requestIdRef.current ) {
+					setLoading( false );
+				}
+			} );
 	}, [ page, filters ] );
 
 	useEffect( () => {

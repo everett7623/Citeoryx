@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from '@wordpress/element';
+import { useState, useEffect, useCallback, useRef } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { getApiErrorMessage } from '../apiError';
@@ -28,9 +28,11 @@ const Inventory = () => {
 	} );
 	const [ appliedSearch, setAppliedSearch ] = useState( '' );
 	const [ error, setError ] = useState( null );
+	const requestIdRef = useRef( 0 );
 
 	const fetchItems = useCallback(
 		( currentPage ) => {
+			const requestId = ++requestIdRef.current;
 			setLoading( true );
 			setError( null );
 			const query = new URLSearchParams();
@@ -48,18 +50,27 @@ const Inventory = () => {
 
 			apiFetch( { path: `citeoryx/v1/content?${ query.toString() }` } )
 				.then( ( response ) => {
+					if ( requestId !== requestIdRef.current ) {
+						return;
+					}
 					setItems( response.data.items );
 					setTotal( response.data.total );
 				} )
-				.catch( ( err ) =>
-					setError(
-						getApiErrorMessage(
-							err,
-							__( '无法加载内容资产。', 'citeoryx' )
-						)
-					)
-				)
-				.finally( () => setLoading( false ) );
+				.catch( ( err ) => {
+					if ( requestId === requestIdRef.current ) {
+						setError(
+							getApiErrorMessage(
+								err,
+								__( '无法加载内容资产。', 'citeoryx' )
+							)
+						);
+					}
+				} )
+				.finally( () => {
+					if ( requestId === requestIdRef.current ) {
+						setLoading( false );
+					}
+				} );
 		},
 		[ filters.status, filters.post_type, appliedSearch ]
 	);

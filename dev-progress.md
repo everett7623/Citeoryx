@@ -1,6 +1,6 @@
 # Citeoryx 开发进度
 
-> 最后更新：2026-08-19
+> 最后更新：2026-08-20
 
 > 当前发布版本：2.3.1
 > 下一开发目标：2.4.0
@@ -21,6 +21,7 @@
   - `GET /issues` / `PATCH /issues/{id}` 问题管理
   - `POST /scans` / `GET /scans/{id}` 扫描任务
 - `GET /reports/summary` 内容评分、问题分布与最近扫描汇总
+- `/dashboard` 与 `/reports/summary` 使用 5 分钟版本化 Transient 缓存，内容、问题、扫描、指标和 SEO 插件状态写入触发同请求合并失效
 - `GET /settings` / `POST /settings` 站点画像与设置
 - `GET /optimizer/{id}` 内容优化建议
 - `POST /recommendations/apply` 创建安全 WordPress Revision，包含完整字段校验、并发快照与重复提交幂等
@@ -36,12 +37,13 @@
 - 引导页 (`Onboarding.js`)：首次使用强制完成完整站点画像，保存后直接进入后台
 - CSV 导出（内容资产、问题列表）
 - 激活后自动跳转到插件页面
-- Dashboard 对扫描任务进行单一轮询，显示进度与失败原因
+- Dashboard 对扫描任务进行单一轮询，显示进度，并在完成聚合刷新后保留扫描失败原因
 - 报告页展示内容状态、平均健康分/AI 准备度、问题分布、优先问题与最近扫描，并可导出防公式注入的 CSV 和自动分页 A4 PDF
 - 后台子菜单只保留已实现页面，所有入口均可正确渲染 React 应用
 - 设置页支持周报与严重问题通知开关、收件邮箱、测试发送和最近发送状态
 - 首次设置加载会隔离可选通知状态异常，后台 API 错误统一过滤 HTML 正文
 - 优化工作台支持编辑标题、摘要和正文，提供字段级差异预览，并在不修改父内容的前提下创建 Revision 供人工审核；已验证提案可按 GSC/Bing 来源比较发布前后 7/28 天效果
+- 内容资产、问题与机会列表按每页 20 条服务端分页；内容资产、问题和规划只接受最新请求响应，优化器内容选择器也可按 20 条翻页访问全部资产，切换内容后不会接收旧优化分析结果
 
 ### 内容扫描与分析
 - 全量/增量扫描 (`ContentScanner.php`)
@@ -67,6 +69,7 @@
 - Google Search Console：OAuth 2.0 授权、token 自动刷新、站点列表、站点指标与 URL 查询词读取
 - OpenAI / DeepSeek：通过 Chat Completions API 生成内容优化建议与 AI 可发现性分析
 - Anthropic：通过 Messages API 生成内容优化建议与 AI 可发现性分析
+- AI 后台任务状态使用单飞轮询，慢请求完成后才安排下一次查询
 - 支持 OpenAI / Anthropic 兼容的第三方 HTTPS API 基础地址与模型标识
 - OAuth token、Google client secret 和 AI API key 通过 `KeyStore` 加密存储
 - 管理端“集成”页可配置、连接和断开 Google Search Console，并配置 AI 提供商
@@ -74,7 +77,7 @@
 - DeepSeek：通过 Chat Completions API 生成内容优化建议与 AI 可发现性分析
 - 所有搜索控制台与 AI 密钥通过 `KeyStore` 加密存储
 - 已实现 Google Search Console / Bing 定时数据导入：Google 写入三天延迟的日快照，Bing 按 API 返回的统计日期幂等写入，使用 ID 游标分批续接
-- Google / Bing 支持显式连接验证、健康状态记录与连续导入失败告警；合法空数据不会被误判为连接失败
+- Google / Bing 支持显式连接验证、健康状态记录与连续导入失败告警；合法空数据不会被误判为连接失败，验证期间连接变更入口互斥
 - Google / Bing 对网络错误、429 和 5xx 最多尝试 3 次，支持有上限的 `Retry-After` 与指数退避；确定性 4xx 不重试
 - 搜索导入按 Provider 真实统计日期保存页面 × 查询快照；Google 同时记录国家和设备维度，报告页与 CSV 提供 28 天趋势及维度汇总
 - 站点报告及 CSV 已显示本地 28 天搜索点击与展现聚合
@@ -103,6 +106,7 @@
 | `src/Domain/Issue/IssueRepository.php` | 刷新问题时复用同一内容/问题代码记录 |
 | `src/Application/Scan/ContentScanner.php` | 站点画像扫描范围、批次扫描和 URL 归一化 |
 | `src/Infrastructure/Queue/Scheduler.php` | 持久化扫描任务、续接批次和失败状态 |
+| `assets/src/admin/components/Dashboard.js` / `assets/src/admin/dashboard.test.js` | 自动刷新扫描结果时保留失败原因，并覆盖失败轮询顺序 |
 | `src/Domain/Metrics/MetricsRepository.php` | 空聚合结果的安全处理 |
 | `tests/Unit/IssueRepositoryTest.php` | 覆盖问题刷新去重 |
 | `tests/Unit/ScansControllerTest.php` | 覆盖异步扫描创建与类型校验 |
@@ -156,17 +160,24 @@
 | `src/Integrations/SearchConsole/*` | 保留安全的请求错误并提供统一连接验证契约 |
 | `src/Rest/Controllers/SearchConsoleController.php` / `BingController.php` | 新增连接验证端点并返回健康状态 |
 | `assets/src/admin/components/Integrations.js` / `src/Admin/Notices.php` | 展示连接状态并在连续失败后通知集成管理员 |
+| `assets/src/admin/components/Integrations.js` / `assets/src/admin/integrations.test.js` | 验证搜索连接期间阻止断开操作；搜索状态回读保持 AI 表单挂载并保留未保存字段 |
 | `src/Domain/Metrics/MetricsRepository.php` | 幂等保存页面 × 查询 × 国家 × 设备快照，并提供 28 天维度聚合与每日趋势 |
 | `assets/src/admin/components/Reports.js` / `ReportTables.js` | 展示搜索趋势、热门查询、国家和设备表现 |
 | `src/Infrastructure/Http/RetryPolicy.php` | 为搜索 API 提供有上限的暂时性失败重试、指数退避与 `Retry-After` 解析 |
 | `src/Application/Planning/TopicOpportunityFinder.php` | 将本地搜索查询证据分类为临门一脚、优先刷新和低置信主题缺口候选 |
 | `src/Rest/Controllers/PlanningController.php` / `assets/src/admin/components/Planning.js` | 提供分页主题机会 API 与后台内容规划视图 |
 | `src/Application/Planning/PlanningCalendar.php` / `src/Domain/Planning/CalendarRepository.php` | 按站点时区聚合原生定时文章与到期复核内容 |
-| `assets/src/admin/components/PlanningCalendar.js` / `PlanningCalendarLists.js` | 展示发布计划、过期提醒并支持标记复核完成 |
+| `assets/src/admin/components/PlanningCalendar.js` / `PlanningCalendarLists.js` | 展示发布计划、过期提醒并支持互斥执行复核写入与结果刷新 |
+| `assets/src/admin/planningCalendar.test.js` | 覆盖多条到期内容下复核写入和刷新期间的页面级操作锁 |
 | `src/Application/Optimize/RevisionDraftService.php` | 通过公开 WordPress Post API 创建安全、幂等的 Revision，并校验完整快照冲突 |
 | `src/Application/Optimize/RevisionPerformanceMonitor.php` / `src/Domain/Metrics/MetricsRepository.php` | 固化验证后的发布时间点，并按来源聚合固定日期范围的发布前后搜索效果 |
 | `src/Rest/Controllers/OptimizerController.php` | 提供编辑快照并新增 `/recommendations/apply` 契约与对象级权限检查 |
 | `assets/src/admin/components/OptimizerRevisionPanel.js` / `RevisionDiffPreview.js` | 编辑拟议字段、预览差异并创建 Revision |
+| `assets/src/admin/components/Optimizer.js` / `assets/src/admin/listPagination.test.js` | 防止切换内容后的旧优化分析响应覆盖当前选择，并覆盖乱序完成场景 |
+| `assets/src/admin/components/AiAnalysisPanel.js` / `assets/src/admin/aiAnalysisPanel.test.js` | 将 AI 状态轮询改为单飞调度，并覆盖慢请求不重叠 |
+| `assets/src/admin/components/OptimizerRevisionPanel.js` / `assets/src/admin/optimizerRevisionPanel.test.js` | 面板卸载后隔离旧闭环响应，并互斥执行 Revision 创建、状态刷新与重新扫描验证 |
+| `src/Infrastructure/Cache/RestResponseCache.php` | 缓存全站聚合 REST 响应，并通过唯一 token 提供并发可靠、批量合并的写后失效 |
+| `tests/Unit/RestResponseCacheTest.php` | 覆盖缓存命中、合并失效及四类聚合数据仓储写入后的刷新 |
 
 ## 待开发 / 建议下一步
 
@@ -179,7 +190,7 @@
    - PDF 报告导出（已完成首版：浏览器端 A4 生成、中文渲染、自动分页与下载错误提示）
 
 3. **测试与质量**
-   - Playwright E2E 测试（已完成首版：wp-env、首次引导、扫描创建与进度轮询、问题查看与解决、规划/报告导航、PDF 下载与 CI 失败诊断）
+   - Playwright E2E 测试（已完成首版：wp-env、首次引导、扫描创建与进度轮询、问题查看与解决、规划/报告导航、PDF 下载、优化器规则建议、安全 Revision 创建、模拟人工审核发布、真实重新扫描验证、GSC/Bing 效果展示、AI 后台任务创建/轮询/结果展示，以及 CI 失败诊断）
 
 4. **优化工作台闭环**
    - Revision Diff 与安全创建修订（已完成首版：完整字段快照、差异预览、能力与对象权限、并发冲突、幂等提交）
@@ -198,9 +209,9 @@
 
 ## 已知限制
 
-- 本机 Docker 已验证 PHP 8.0.30 / WordPress 6.6.7：PHPUnit 101 项、392 个断言通过，125 个 PHP 文件通过 WPCS，PHP 8.0+ 兼容检查通过。
-- Jest 10 个套件、29 项测试通过；JavaScript/CSS lint、项目一致性检查与生产构建均通过。
-- Playwright 5 条真实后台旅程已分别在 WordPress 6.6.7 和 7.0.4 通过，覆盖首次画像、扫描创建与进度轮询、问题查看与解决、规划/报告导航与 PDF 下载。
+- 本机 Docker 已验证 PHP 8.0.30 / WordPress 6.6.7：PHPUnit 105 项、403 个断言通过，127 个 PHP 文件通过 WPCS，PHP 8.0+ 兼容检查通过。
+- Jest 16 个套件、40 项测试通过；JavaScript/CSS lint、项目一致性检查与生产构建均通过。
+- Playwright 7 条真实后台旅程已分别在 WordPress 6.6.7 和 7.0.4 通过，覆盖首次画像、扫描创建与进度轮询、问题查看与解决、规划/报告导航、PDF 下载、优化器规则建议、安全 Revision、模拟人工审核发布、真实重新扫描验证、GSC/Bing 7/28 天效果展示，以及 AI 后台任务创建、轮询与结果展示；AI 旅程仅对外部提供商响应使用确定性浏览器 mock。
 - GitHub Actions 保持 PHP 8.0–8.4、WordPress 6.6/latest 与 MySQL 8 测试矩阵；本轮未触发远端工作流。
 - Google 每个内容 URL/日期保存前 100 个查询 × 国家 × 设备组合；Bing 查询统计由 API 返回自身日期（通常按周更新），且不提供国家和设备字段。
 - 搜索 API 暂时性失败最多同步尝试 3 次、单次等待最多 2 秒；凭据、权限等确定性 4xx 会立即失败并进入健康状态记录。

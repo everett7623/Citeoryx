@@ -7,6 +7,8 @@
 
 namespace Citeoryx\Support;
 
+use Citeoryx\Infrastructure\Cache\RestResponseCache;
+
 /**
  * WordPress privacy exporter / eraser integration.
  */
@@ -104,13 +106,16 @@ class Privacy {
 		global $wpdb;
 		$table = $wpdb->prefix . CITEORYX_TABLE_ISSUES;
 
-		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$updated = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$table,
 			array( 'assigned_user_id' => null ),
 			array( 'assigned_user_id' => $user->ID ),
 			array( '%d' ),
 			array( '%d' )
 		);
+		if ( false !== $updated && $updated > 0 ) {
+			RestResponseCache::invalidate();
+		}
 
 		return array(
 			'items_removed'  => true,

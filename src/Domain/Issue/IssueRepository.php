@@ -7,6 +7,8 @@
 
 namespace Citeoryx\Domain\Issue;
 
+use Citeoryx\Infrastructure\Cache\RestResponseCache;
+
 /**
  * Repository for issues.
  */
@@ -94,6 +96,7 @@ class IssueRepository {
 				array( '%d', '%s', '%s', '%s', '%s', '%s', '%f', '%f', '%f', '%s', '%s', '%s', '%s', '%s', '%s', '%d' ),
 				array( '%d' )
 			);
+			RestResponseCache::invalidate();
 			return $issue->id;
 		}
 
@@ -103,6 +106,7 @@ class IssueRepository {
 			$data,
 			array( '%d', '%s', '%s', '%s', '%s', '%s', '%f', '%f', '%f', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' )
 		);
+		RestResponseCache::invalidate();
 
 		return (int) $wpdb->insert_id;
 	}
@@ -223,7 +227,7 @@ class IssueRepository {
 	public function resolve_by_code( int $content_id, string $issue_code ): void {
 		global $wpdb;
 
-		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$updated = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$this->table(),
 			array(
 				'status'      => 'resolved',
@@ -237,6 +241,10 @@ class IssueRepository {
 			array( '%s', '%s' ),
 			array( '%d', '%s', '%s' )
 		);
+
+		if ( false !== $updated && $updated > 0 ) {
+			RestResponseCache::invalidate();
+		}
 	}
 
 	/**

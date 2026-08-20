@@ -20,12 +20,15 @@ const Dashboard = () => {
 	const [ scanId, setScanId ] = useState( null );
 	const [ scanRun, setScanRun ] = useState( null );
 
-	const fetchDashboard = () => {
+	const fetchDashboard = ( options = {} ) => {
+		const preserveError = Boolean( options.preserveError );
 		setLoading( true );
 		apiFetch( { path: 'citeoryx/v1/dashboard' } )
 			.then( ( response ) => {
 				setData( response.data );
-				setError( null );
+				if ( ! preserveError ) {
+					setError( null );
+				}
 				const activeScan = ( response.data.recent_scans || [] ).find(
 					( scan ) => [ 'queued', 'running' ].includes( scan.status )
 				);
@@ -75,7 +78,9 @@ const Dashboard = () => {
 								run.error_log || __( '扫描失败。', 'citeoryx' )
 							);
 						}
-						fetchDashboard();
+						fetchDashboard( {
+							preserveError: 'failed' === run.status,
+						} );
 						return;
 					}
 					timer = setTimeout( poll, 3000 );

@@ -55,17 +55,22 @@ const Integrations = () => {
 	const [ validating, setValidating ] = useState( null );
 	const [ notice, setNotice ] = useState( null );
 
-	const loadStatus = () => {
+	const loadStatus = ( options = {} ) => {
+		const includeAi = options.includeAi !== false;
 		setLoading( true );
-		Promise.all( [
+		return Promise.all( [
 			apiFetch( { path: 'citeoryx/v1/integrations/gsc' } ),
 			apiFetch( { path: 'citeoryx/v1/integrations/bing' } ),
-			apiFetch( { path: 'citeoryx/v1/integrations/ai' } ),
+			includeAi
+				? apiFetch( { path: 'citeoryx/v1/integrations/ai' } )
+				: Promise.resolve( null ),
 		] )
 			.then( ( [ gscResponse, bingResponse, aiResponse ] ) => {
 				setGsc( gscResponse.data );
 				setBing( bingResponse.data );
-				setAi( aiResponse.data );
+				if ( aiResponse ) {
+					setAi( aiResponse.data );
+				}
 				if ( gscResponse.data.connection_result === 'connected' ) {
 					setNotice( {
 						status: 'success',
@@ -146,7 +151,7 @@ const Integrations = () => {
 					status: 'success',
 					text: __( 'Google Search Console 已断开。', 'citeoryx' ),
 				} );
-				loadStatus();
+				return loadStatus( { includeAi: false } );
 			} )
 			.catch( ( error ) =>
 				setNotice( {
@@ -180,7 +185,7 @@ const Integrations = () => {
 					status: 'success',
 					text: __( 'Bing Webmaster Tools 已连接。', 'citeoryx' ),
 				} );
-				loadStatus();
+				return loadStatus( { includeAi: false } );
 			} )
 			.catch( ( error ) =>
 				setNotice( {
@@ -205,7 +210,7 @@ const Integrations = () => {
 					status: 'success',
 					text: __( 'Bing Webmaster Tools 已断开。', 'citeoryx' ),
 				} );
-				loadStatus();
+				return loadStatus( { includeAi: false } );
 			} )
 			.catch( ( error ) =>
 				setNotice( {
@@ -256,9 +261,11 @@ const Integrations = () => {
 			.finally( () => setValidating( null ) );
 	};
 
-	if ( loading ) {
+	if ( loading && ( ! gsc || ! bing || ! ai ) ) {
 		return <Spinner />;
 	}
+
+	const searchBusy = loading || saving;
 
 	return (
 		<div className="citeoryx-integrations">
@@ -312,7 +319,7 @@ const Integrations = () => {
 							<Button
 								variant="primary"
 								onClick={ saveGsc }
-								disabled={ saving }
+								disabled={ searchBusy }
 							>
 								{ __( '保存并连接 Google', 'citeoryx' ) }
 							</Button>
@@ -322,7 +329,7 @@ const Integrations = () => {
 						<Button
 							variant="primary"
 							onClick={ connectGsc }
-							disabled={ saving }
+							disabled={ searchBusy }
 						>
 							{ __( '连接 Google Search Console', 'citeoryx' ) }
 						</Button>
@@ -331,7 +338,7 @@ const Integrations = () => {
 						<Button
 							variant="primary"
 							onClick={ () => validateSearchConnection( 'gsc' ) }
-							disabled={ saving || validating !== null }
+							disabled={ searchBusy || validating !== null }
 							isBusy={ validating === 'gsc' }
 						>
 							{ __( '验证连接', 'citeoryx' ) }
@@ -341,7 +348,7 @@ const Integrations = () => {
 						<Button
 							variant="secondary"
 							onClick={ disconnectGsc }
-							disabled={ saving }
+							disabled={ searchBusy || validating !== null }
 						>
 							{ __( '断开连接', 'citeoryx' ) }
 						</Button>
@@ -371,7 +378,7 @@ const Integrations = () => {
 							<Button
 								variant="primary"
 								onClick={ saveBing }
-								disabled={ saving }
+								disabled={ searchBusy }
 							>
 								{ __( '保存并连接 Bing', 'citeoryx' ) }
 							</Button>
@@ -381,7 +388,7 @@ const Integrations = () => {
 						<Button
 							variant="primary"
 							onClick={ () => validateSearchConnection( 'bing' ) }
-							disabled={ saving || validating !== null }
+							disabled={ searchBusy || validating !== null }
 							isBusy={ validating === 'bing' }
 						>
 							{ __( '验证连接', 'citeoryx' ) }
@@ -391,7 +398,7 @@ const Integrations = () => {
 						<Button
 							variant="secondary"
 							onClick={ disconnectBing }
-							disabled={ saving }
+							disabled={ searchBusy || validating !== null }
 						>
 							{ __( '断开连接', 'citeoryx' ) }
 						</Button>

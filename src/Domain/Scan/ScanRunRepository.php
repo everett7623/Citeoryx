@@ -7,6 +7,8 @@
 
 namespace Citeoryx\Domain\Scan;
 
+use Citeoryx\Infrastructure\Cache\RestResponseCache;
+
 /**
  * Repository for scan runs.
  */
@@ -45,6 +47,7 @@ class ScanRunRepository {
 			),
 			array( '%s', '%s', '%d', '%d', '%d', '%s', '%s', '%s' )
 		);
+		RestResponseCache::invalidate();
 
 		return (int) $wpdb->insert_id;
 	}
@@ -107,6 +110,9 @@ class ScanRunRepository {
 			array( '%s', '%s' ),
 			array( '%d', '%s' )
 		);
+		if ( 1 === $result ) {
+			RestResponseCache::invalidate();
+		}
 		return 1 === $result;
 	}
 
@@ -139,13 +145,16 @@ class ScanRunRepository {
 			$formats[]           = '%s';
 		}
 
-		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$updated = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$this->table(),
 			$data,
 			array( 'id' => $id ),
 			$formats,
 			array( '%d' )
 		);
+		if ( false !== $updated && $updated > 0 ) {
+			RestResponseCache::invalidate();
+		}
 	}
 
 	/**
@@ -158,7 +167,7 @@ class ScanRunRepository {
 	public function mark_failed( int $id, string $message ): void {
 		global $wpdb;
 
-		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$updated = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$this->table(),
 			array(
 				'status'      => 'failed',
@@ -169,6 +178,9 @@ class ScanRunRepository {
 			array( '%s', '%s', '%s' ),
 			array( '%d' )
 		);
+		if ( false !== $updated && $updated > 0 ) {
+			RestResponseCache::invalidate();
+		}
 	}
 
 	/**

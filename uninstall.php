@@ -67,6 +67,7 @@ function citeoryx_delete_options(): void {
 		'citeoryx_critical_alert_status',
 		'citeoryx_critical_alert_fingerprint',
 		'citeoryx_search_integration_health',
+		'citeoryx_rest_response_cache_version',
 		'citeoryx_capabilities_version',
 		'citeoryx_key_gsc_tokens',
 		'citeoryx_key_gsc_client_secret',

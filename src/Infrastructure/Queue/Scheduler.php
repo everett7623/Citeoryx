@@ -7,6 +7,8 @@
 
 namespace Citeoryx\Infrastructure\Queue;
 
+use Citeoryx\Infrastructure\Cache\RestResponseCache;
+
 use Citeoryx\Application\Analyze\IssueEngine;
 use Citeoryx\Application\Scan\ContentScanner;
 use Citeoryx\Application\Scan\LinkChecker;
@@ -324,13 +326,16 @@ class Scheduler {
 
 	private function update_config( int $run_id, array $config ): void {
 		global $wpdb;
-		$table = $wpdb->prefix . CITEORYX_TABLE_SCAN_RUNS;
-		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$table   = $wpdb->prefix . CITEORYX_TABLE_SCAN_RUNS;
+		$updated = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$table,
 			array( 'config_json' => wp_json_encode( $config ) ),
 			array( 'id' => $run_id ),
 			array( '%s' ),
 			array( '%d' )
 		);
+		if ( false !== $updated && $updated > 0 ) {
+			RestResponseCache::invalidate();
+		}
 	}
 }

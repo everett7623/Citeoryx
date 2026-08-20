@@ -54,7 +54,7 @@ const ReviewList = ( { items, canManageIssues, updating, onComplete } ) => (
 							{ canManageIssues && (
 								<Button
 									variant="secondary"
-									disabled={ updating === item.content_id }
+									disabled={ updating !== null }
 									onClick={ () =>
 										onComplete( item.content_id )
 									}
