@@ -11,6 +11,7 @@ use Citeoryx\Application\Analyze\IssueEngine;
 use Citeoryx\Application\Scan\ContentScanner;
 use Citeoryx\Application\Scan\LinkChecker;
 use Citeoryx\Application\Search\SearchPerformanceImporter;
+use Citeoryx\Domain\Content\ContentRepository;
 use Citeoryx\Domain\Scan\ScanRunRepository;
 use Citeoryx\Infrastructure\Queue\Scheduler;
 use WP_UnitTestCase;
@@ -100,6 +101,6 @@ class SearchSchedulerTest extends WP_UnitTestCase {
 			}
 		};
 
-		return new Scheduler( $scanner, $engine, $checker, new ScanRunRepository(), $importer );
+		return new Scheduler( $scanner, $engine, $checker, new ScanRunRepository(), $importer, new ContentRepository() );
 	}
 }

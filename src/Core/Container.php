@@ -105,7 +105,8 @@ class Container {
 					$this->get( IssueEngine::class ),
 					$this->get( LinkChecker::class ),
 					$this->get( ScanRunRepository::class ),
-					$this->get( SearchPerformanceImporter::class )
+					$this->get( SearchPerformanceImporter::class ),
+					$this->get( ContentRepository::class )
 				);
 			case AiAnalysisQueue::class:
 				return new AiAnalysisQueue(

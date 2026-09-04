@@ -7,8 +7,6 @@
 
 namespace Citeoryx\Infrastructure\Queue;
 
-use Citeoryx\Infrastructure\Cache\RestResponseCache;
-
 use Citeoryx\Application\Analyze\IssueEngine;
 use Citeoryx\Application\Scan\ContentScanner;
 use Citeoryx\Application\Scan\LinkChecker;
@@ -27,19 +25,22 @@ class Scheduler {
 	private LinkChecker $link_checker;
 	private ScanRunRepository $scan_repo;
 	private SearchPerformanceImporter $search_importer;
+	private ContentRepository $content_repo;
 
 	public function __construct(
 		ContentScanner $scanner,
 		IssueEngine $issue_engine,
 		LinkChecker $link_checker,
 		ScanRunRepository $scan_repo,
-		SearchPerformanceImporter $search_importer
+		SearchPerformanceImporter $search_importer,
+		ContentRepository $content_repo
 	) {
 		$this->scanner         = $scanner;
 		$this->issue_engine    = $issue_engine;
 		$this->link_checker    = $link_checker;
 		$this->scan_repo       = $scan_repo;
 		$this->search_importer = $search_importer;
+		$this->content_repo    = $content_repo;
 	}
 
 	/**
@@ -173,7 +174,7 @@ class Scheduler {
 			}
 
 			$run->config = $config;
-			$this->update_config( $run_id, $config );
+			$this->scan_repo->update_config( $run_id, $config );
 			if ( ! $this->schedule_run( $run_id ) ) {
 				$this->scan_repo->mark_failed( $run_id, __( '无法继续调度扫描任务。', 'citeoryx' ) );
 			}
@@ -228,8 +229,7 @@ class Scheduler {
 	 * @return void
 	 */
 	public function recalc_health_batch( int $after_id = 0 ): void {
-		$content_repo = new ContentRepository();
-		$items        = $content_repo->list_after_id( $after_id, 50 );
+		$items = $this->content_repo->list_after_id( $after_id, 50 );
 		if ( empty( $items ) ) {
 			return;
 		}
@@ -322,20 +322,5 @@ class Scheduler {
 			return;
 		}
 		wp_schedule_single_event( time() + 1, 'citeoryx_import_search_performance_batch', array( 'after_id' => $after_id ) );
-	}
-
-	private function update_config( int $run_id, array $config ): void {
-		global $wpdb;
-		$table   = $wpdb->prefix . CITEORYX_TABLE_SCAN_RUNS;
-		$updated = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			$table,
-			array( 'config_json' => wp_json_encode( $config ) ),
-			array( 'id' => $run_id ),
-			array( '%s' ),
-			array( '%d' )
-		);
-		if ( false !== $updated && $updated > 0 ) {
-			RestResponseCache::invalidate();
-		}
 	}
 }

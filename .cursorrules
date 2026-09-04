@@ -22,9 +22,11 @@ WordPress Plugin - 内容健康度监控与 AI 可发现性引擎
 - 适配器位于 `src/Integrations/SeoPlugins/`
 
 ### 3. 命名规范
-- PHP 类/接口/常量：`CX_` 前缀
+- PHP 类/接口：纯 PSR-4，无前缀（`ContentRepository`）
+- PHP 全局常量：`CITEORYX_` 前缀（`CITEORYX_DB_VERSION`、`CITEORYX_TABLE_ISSUES`）
+- `CX_` 只用于 issue code 字符串（`CX_CONTENT_STALE`），不是类或常量前缀
 - 函数/Hook/Option：`citeoryx_` 前缀
-- 数据库表：`{$wpdb->prefix}cx_` 前缀
+- 数据库表：`{$wpdb->prefix}cx_` 前缀，表名以 `src/Core/constants.php` 的 `CITEORYX_TABLE_*` 常量为准（`cx_content_items`、`cx_metrics_daily` 等）
 - 命名空间：`Citeoryx\`
 - REST 命名空间：`/citeoryx/v1/`
 - 文本域：`citeoryx`
@@ -39,7 +41,8 @@ WordPress Plugin - 内容健康度监控与 AI 可发现性引擎
 - PHP: WordPress Coding Standards (WPCS)
 - JavaScript: WordPress Scripts ESLint 配置
 - 所有 Repository 方法必须类型声明
-- Controller 必须声明 `get_endpoint_args_for_item_schema()`
+- Controller 入口方法是 `register( string $namespace )`，需在 `src/Rest/Router.php` 注册
+- 参数在 callback 内手动 sanitize + 白名单校验；本项目不使用 `get_endpoint_args_for_item_schema()`
 
 ## 开发命令
 

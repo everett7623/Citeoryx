@@ -12,7 +12,6 @@ use Citeoryx\Core\Capabilities;
 use Citeoryx\Domain\Content\ContentItem;
 use Citeoryx\Domain\Content\ContentRepository;
 use WP_REST_Controller;
-use WP_REST_Request;
 use WP_REST_Response;
 
 /**
@@ -110,19 +109,5 @@ abstract class BaseController extends WP_REST_Controller {
 	protected function can_access_content_id( int $content_id ): bool {
 		$item = $this->container->get( ContentRepository::class )->find( $content_id );
 		return ! $item || $this->can_access_content( $item );
-	}
-
-	/**
-	 * Validate REST nonce.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return bool
-	 */
-	protected function verify_nonce( WP_REST_Request $request ): bool {
-		$nonce = $request->get_header( 'X-WP-Nonce' );
-		if ( ! $nonce ) {
-			$nonce = $request->get_param( '_wpnonce' );
-		}
-		return wp_verify_nonce( $nonce, 'wp_rest' ) !== false;
 	}
 }

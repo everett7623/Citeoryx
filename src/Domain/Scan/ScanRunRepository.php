@@ -158,6 +158,28 @@ class ScanRunRepository {
 	}
 
 	/**
+	 * Persist the batch cursor and config for a running task.
+	 *
+	 * @param int                  $id Run ID.
+	 * @param array<string, mixed> $config Scan config including the batch cursor.
+	 * @return void
+	 */
+	public function update_config( int $id, array $config ): void {
+		global $wpdb;
+
+		$updated = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$this->table(),
+			array( 'config_json' => wp_json_encode( $config ) ),
+			array( 'id' => $id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+		if ( false !== $updated && $updated > 0 ) {
+			RestResponseCache::invalidate();
+		}
+	}
+
+	/**
 	 * Persist a failed task with a bounded error message.
 	 *
 	 * @param int    $id Run ID.

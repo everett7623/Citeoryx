@@ -13,8 +13,17 @@
 - 新增 AI 深度分析任务创建、后台轮询和结构化结果展示的 Playwright 旅程，外部提供商响应使用确定性浏览器 mock
 - 新增总览与报告聚合响应的 5 分钟版本化缓存，并由内容、问题、扫描、指标及 SEO 插件状态写入统一触发合并失效
 
+### Removed
+- 删除 5 份一次性过程总结文档（`UPGRADE-REPORT.md`、`UPGRADE-SUMMARY.md`、`FORM-VALIDATION-SUMMARY.md`、`UI-UX-OPTIMIZATION-SUMMARY.md`、`RELEASE-2.3.1.md`），共 1477 行；结论已由 CHANGELOG 与 `dev-progress.md` 承载
+- 删除 `BaseController::verify_nonce()` 死代码，该方法自引入起零调用（WordPress REST 对 cookie 认证已强制校验 nonce）
+
 ### Changed
-- 清理空的 Web 脚手架、历史覆盖率报告与临时 PDF 输出
+- 确立 `CLAUDE.md` 为 AI 助手文档的唯一事实源，`AI-GUIDELINES.md` 精简为共享上下文，不再维护第四份完整副本
+- 修正 `AI-GUIDELINES.md`、`.cursorrules`、`.github/copilot-instructions.md`、`CONTRIBUTING.md` 中与代码不符的命名规范、表名、REST schema 与集成目录结论
+- 合并 `references/` 中记录同一 Sub2API Responses 协议问题的两份案例笔记
+- 扫描任务的 `config_json` 游标写入移入 `ScanRunRepository::update_config()`，`Scheduler` 不再直接操作 `$wpdb`
+- `Scheduler` 改为注入 `ContentRepository`，健康分重算批次不再在方法内自行实例化仓储
+- 更新 `SECURITY.md` 支持版本表至 2.3.x
 - 统一架构、测试和发布文档中的目录及 2.3.1 版本信息
 - 固定 PHP 与 Shell 脚本使用 LF 换行，并关闭 wp-env 中的 WordPress 自动升级
 - Playwright 全局准备现在会幂等激活 Citeoryx，不再依赖人工环境状态
@@ -57,10 +66,8 @@
 - 修复表格和分页组件在条件渲染时的布局问题
 
 ### Development
-- 新增项目升级优化报告 `UPGRADE-REPORT.md`
-- 统一 AI 工具开发文档（CLAUDE.md, .cursorrules, copilot-instructions.md）
+- 统一 AI 工具开发文档（CLAUDE.md、.cursorrules、copilot-instructions.md）
 - 新增通用 AI 开发指南 `AI-GUIDELINES.md`
-- 新增执行总结 `UPGRADE-SUMMARY.md` 和 `UI-UX-OPTIMIZATION-SUMMARY.md`
 
 ## 2.3.0 - 2026-07-25
 

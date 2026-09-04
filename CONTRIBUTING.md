@@ -33,7 +33,9 @@ npm run build
 
 - 遵循 WordPress PHP Coding Standards；
 - 使用 PSR-4 自动加载；
-- 类 / 接口 / 常量使用 `CX_` 前缀；
+- 类 / 接口不加前缀，直接用 PSR-4 命名（`ContentRepository`）；
+- 全局常量使用 `CITEORYX_` 前缀（`CITEORYX_DB_VERSION`）；
+- `CX_` 只用于 issue code 字符串（`CX_CONTENT_STALE`），不是类或常量前缀；
 - 函数、Hook、Option 使用 `citeoryx_` 前缀；
 - 命名空间为 `Citeoryx\`。
 
