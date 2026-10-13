@@ -134,7 +134,7 @@ Router::register_routes()  →  Controller::register( $namespace )  →  BaseCon
 
 `SchemaManager::install()` 用 `dbDelta()` 建全部表；`maybe_upgrade()` 在每次请求比对 `citeoryx_db_version` option。**改表结构必须同时 bump `src/Core/constants.php` 里的 `CITEORYX_DB_VERSION`**（形如 `2026072204`），否则线上不会迁移。
 
-Repository（`src/Domain/*/`）：`ContentRepository`、`IssueRepository`、`LinkRepository`、`MetricsRepository`、`ScanRunRepository`、`OpportunityRepository`、`CalendarRepository`。所有 `$wpdb` 调用只应出现在 Repository 里（`Scheduler::update_config()` 是历史例外）。
+Repository（`src/Domain/*/`）：`ContentRepository`、`IssueRepository`、`LinkRepository`、`MetricsRepository`、`ScanRunRepository`、`OpportunityRepository`、`CalendarRepository`。所有 `$wpdb` 调用只应出现在 Repository 里。
 
 ### REST 聚合缓存
 
@@ -188,4 +188,4 @@ Citeoryx 与 Rank Math / Yoast / AIOSEO / SEOPress 共存的前提是**不往前
 - `TESTING.md` — 测试环境与覆盖清单
 - `dev-progress.md` — 已完成 / 进行中功能的权威清单
 - `references/case-*.md` — 线上问题复盘笔记（症状 / 原始证据 / 根因 / 修复 / 验证 / 教训）。排查同类问题前先翻这里；定位到新的结构性缺陷后按同样格式补一篇。
-- `AI-GUIDELINES.md`、`.cursorrules`、`.github/copilot-instructions.md` — 其他 AI 助手的同源约定。注意这三份里的命名规范表和表名尚未更新（仍写着 `CX_` 类前缀、`cx_content`、`cx_ai_analysis_tasks`），以本文件为准；改动架构结论时一并同步。
+- `AI-GUIDELINES.md`、`.cursorrules`、`.github/copilot-instructions.md` — 其他 AI 助手的同源约定，命名规范表和表名已与本文件同步；改动架构结论时一并同步。
