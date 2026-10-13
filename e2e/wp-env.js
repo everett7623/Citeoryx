@@ -43,7 +43,7 @@ const runWp = ( args ) => {
 		[
 			...npx.args,
 			'--yes',
-			'@wordpress/env@11.11.0',
+			'@wordpress/env@11.16.0',
 			'run',
 			getWpEnvTarget(),
 			'wp',
