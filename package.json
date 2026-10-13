@@ -6,8 +6,8 @@
   "scripts": {
     "build": "wp-scripts build --webpack-src-dir=assets/src/admin",
     "start": "wp-scripts start --webpack-src-dir=assets/src/admin",
-    "env:start": "npx --yes @wordpress/env@11.11.0 start",
-    "env:stop": "npx --yes @wordpress/env@11.11.0 stop",
+    "env:start": "npx --yes @wordpress/env@11.16.0 start",
+    "env:stop": "npx --yes @wordpress/env@11.16.0 stop",
     "lint:js": "wp-scripts lint-js",
     "lint:css": "wp-scripts lint-style",
     "check:project": "node bin/check-project-consistency.mjs",
