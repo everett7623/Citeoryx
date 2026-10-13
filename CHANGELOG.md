@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.4.0 - 2026-10-13
 
 ### Added
 - 新增 WordPress 核心版本与 `wordpress-develop` 测试 tag 的独立解析器及回归测试
