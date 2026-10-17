@@ -1,4 +1,4 @@
-import { useState, useEffect } from '@wordpress/element';
+import { useState, useEffect, useRef } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { Button, Notice, TabPanel, Spinner } from '@wordpress/components';
 import apiFetch from '@wordpress/api-fetch';
@@ -20,6 +20,11 @@ const App = () => {
 	const [ settingsData, setSettingsData ] = useState( null );
 	const [ loading, setLoading ] = useState( true );
 	const [ error, setError ] = useState( null );
+	const [ navigation, setNavigation ] = useState( () => ( {
+		hash: window.location.hash.replace( /^#\//, '' ),
+		key: 0,
+	} ) );
+	const selectedTabRef = useRef( null );
 
 	const fetchSettings = () => {
 		setLoading( true );
@@ -70,10 +75,28 @@ const App = () => {
 			? [ { name: 'settings', title: __( '设置', 'citeoryx' ) } ]
 			: [] ),
 	];
-	const hashTab = window.location.hash.replace( /^#\//, '' );
-	const initialTab = tabs.some( ( tab ) => tab.name === hashTab )
-		? hashTab
+	const initialTab = tabs.some( ( tab ) => tab.name === navigation.hash )
+		? navigation.hash
 		: tabs[ 0 ].name;
+
+	useEffect( () => {
+		const handleHashChange = () => {
+			const hash = window.location.hash.replace( /^#\//, '' );
+			const target = tabs.some( ( tab ) => tab.name === hash )
+				? hash
+				: tabs[ 0 ].name;
+			if ( target !== selectedTabRef.current ) {
+				selectedTabRef.current = target;
+				setNavigation( ( previous ) => ( {
+					hash: target,
+					key: previous.key + 1,
+				} ) );
+			}
+		};
+		window.addEventListener( 'hashchange', handleHashChange );
+		return () =>
+			window.removeEventListener( 'hashchange', handleHashChange );
+	} );
 
 	const renderTab = ( tab ) => {
 		switch ( tab.name ) {
@@ -137,11 +160,13 @@ const App = () => {
 				{ __( 'Citeoryx', 'citeoryx' ) }
 			</h1>
 			<TabPanel
+				key={ navigation.key }
 				className="citeoryx-admin__tabs"
 				activeClass="active-tab"
 				tabs={ tabs }
 				initialTabName={ initialTab }
 				onSelect={ ( tab ) => {
+					selectedTabRef.current = tab;
 					window.location.hash = `/${ tab }`;
 				} }
 			>

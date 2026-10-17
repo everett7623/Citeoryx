@@ -8,6 +8,8 @@
 namespace Citeoryx\Tests\Unit;
 
 use Citeoryx\Core\Container;
+use Citeoryx\Domain\Scan\ScanRunRepository;
+use Citeoryx\Infrastructure\Queue\Scheduler;
 use Citeoryx\Rest\Controllers\ScansController;
 use WP_REST_Request;
 use WP_UnitTestCase;
@@ -50,5 +52,20 @@ class ScansControllerTest extends WP_UnitTestCase {
 
 		$response = ( new ScansController( new Container() ) )->create_scan( $request );
 		$this->assertSame( 400, $response->get_status() );
+	}
+
+	public function test_incremental_watermark_uses_enqueue_time(): void {
+		$scheduler    = ( new Container() )->get( Scheduler::class );
+		$run          = $scheduler->enqueue_scan( 'incremental' );
+		$this->run_id = (int) $run->id;
+		$this->assertArrayHasKey( 'scan_started_at', $run->config );
+		$run->config['scan_started_at'] = '2020-01-01 00:00:00';
+		( new ScanRunRepository() )->update_config( $run->id, $run->config );
+		try {
+			$scheduler->run_scan( $run->id );
+			$this->assertSame( '2020-01-01 00:00:00', get_option( 'citeoryx_last_incremental_scan' ) );
+		} finally {
+			delete_option( 'citeoryx_last_incremental_scan' );
+		}
 	}
 }

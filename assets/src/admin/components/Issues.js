@@ -40,7 +40,9 @@ const Issues = () => {
 	const [ error, setError ] = useState( null );
 	const requestIdRef = useRef( 0 );
 	const statusRef = useRef( status );
+	const pageRef = useRef( page );
 	statusRef.current = status;
+	pageRef.current = page;
 
 	const fetchIssues = useCallback( ( currentPage, requestedStatus ) => {
 		const requestId = ++requestIdRef.current;
@@ -54,6 +56,14 @@ const Issues = () => {
 		apiFetch( { path: `citeoryx/v1/issues?${ query.toString() }` } )
 			.then( ( response ) => {
 				if ( requestId !== requestIdRef.current ) {
+					return;
+				}
+				const lastPage = Math.max(
+					1,
+					Math.ceil( response.data.total / 20 )
+				);
+				if ( currentPage > lastPage ) {
+					setPage( lastPage );
 					return;
 				}
 				setIssues( response.data.items );
@@ -87,7 +97,7 @@ const Issues = () => {
 			method: 'PATCH',
 			data: { status: 'resolved' },
 		} )
-			.then( () => fetchIssues( page, statusRef.current ) )
+			.then( () => fetchIssues( pageRef.current, statusRef.current ) )
 			.catch( ( err ) =>
 				setError(
 					getApiErrorMessage(

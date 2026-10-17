@@ -61,6 +61,7 @@ function citeoryx_delete_options(): void {
 		'citeoryx_ai_provider',
 		'citeoryx_ai_provider_settings',
 		'citeoryx_last_change_detection',
+		'citeoryx_change_detection_window',
 		'citeoryx_last_incremental_scan',
 		'citeoryx_last_weekly_digest_period',
 		'citeoryx_notification_status',

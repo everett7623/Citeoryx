@@ -64,4 +64,40 @@ class ContentScannerTest extends WP_UnitTestCase {
 		$this->assertSame( 0, $scanner->count_items( array( 'not-a-post-type' ) ) );
 		$this->assertTrue( $scanner->scan_batch( array( 'not-a-post-type' ) )['complete'] );
 	}
+
+	public function test_incremental_scan_includes_posts_modified_at_watermark(): void {
+		$post_id = self::factory()->post->create();
+		$post    = get_post( $post_id );
+		$scanner = new ContentScanner( new ContentRepository(), new LinkRepository(), new SeoPluginAdapterFactory() );
+		$this->assertSame( 1, $scanner->count_items( array( 'post' ), $post->post_modified ) );
+		$batch = $scanner->scan_batch( array( 'post' ), 0, 50, $post->post_modified );
+		$this->assertSame( array( $post_id ), array_column( $batch['items'], 'object_id' ) );
+	}
+
+	public function test_slug_change_reuses_inventory_record_and_preserves_review_state(): void {
+		$this->set_permalink_structure( '/%postname%/' );
+		$post_id = self::factory()->post->create( array( 'post_name' => 'original-slug' ) );
+		$repo    = new ContentRepository();
+		$scanner = new ContentScanner( $repo, new LinkRepository(), new SeoPluginAdapterFactory() );
+		$first   = $scanner->scan_post( $post_id );
+		$this->assertNotNull( $first );
+		$old_hash                = $first->url_hash;
+		$first->last_reviewed_at = '2026-10-15 09:00:00';
+		$first->assigned_user_id = 42;
+		$repo->save( $first );
+		wp_update_post(
+			array(
+				'ID'        => $post_id,
+				'post_name' => 'updated-slug',
+			)
+		);
+
+		$updated = $scanner->scan_post( $post_id );
+		$this->assertSame( $first->id, $updated->id );
+		$this->assertSame( get_permalink( $post_id ), $updated->canonical_url );
+		$this->assertSame( md5( get_permalink( $post_id ) ), $updated->url_hash );
+		$this->assertNull( $repo->find_by_url_hash( $old_hash ) );
+		$this->assertSame( '2026-10-15 09:00:00', $updated->last_reviewed_at );
+		$this->assertSame( 42, $updated->assigned_user_id );
+	}
 }

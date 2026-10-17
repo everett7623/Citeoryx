@@ -56,15 +56,15 @@ class ContentScanner {
 		}
 
 		$url_hash = md5( $canonical );
-		$item     = $this->content_repo->find_by_url_hash( $url_hash );
+		$item     = $this->content_repo->find_by_object( 'post', $post_id );
 		if ( ! $item ) {
-			$item                = new ContentItem();
-			$item->object_id     = $post_id;
-			$item->object_type   = 'post';
-			$item->post_type     = $post_type;
-			$item->canonical_url = $canonical;
-			$item->url_hash      = $url_hash;
+			$item              = new ContentItem();
+			$item->object_id   = $post_id;
+			$item->object_type = 'post';
 		}
+		$item->post_type     = $post_type;
+		$item->canonical_url = $canonical;
+		$item->url_hash      = $url_hash;
 
 		$item->published_at    = $post->post_date;
 		$item->modified_at     = $post->post_modified;
@@ -208,8 +208,9 @@ class ContentScanner {
 		if ( $modified_after ) {
 			$query_args['date_query'] = array(
 				array(
-					'column' => 'post_modified',
-					'after'  => $modified_after,
+					'column'    => 'post_modified',
+					'after'     => $modified_after,
+					'inclusive' => true,
 				),
 			);
 		}
@@ -260,8 +261,9 @@ class ContentScanner {
 		if ( $modified_after ) {
 			$query_args['date_query'] = array(
 				array(
-					'column' => 'post_modified',
-					'after'  => $modified_after,
+					'column'    => 'post_modified',
+					'after'     => $modified_after,
+					'inclusive' => true,
 				),
 			);
 		}

@@ -148,6 +148,7 @@ class Plugin {
 	private function register_queue(): void {
 		$scheduler = $this->container->get( Scheduler::class );
 		add_action( 'citeoryx_hourly_change_detection', array( $scheduler, 'detect_changes' ) );
+		add_action( 'citeoryx_change_detection_batch', array( $scheduler, 'detect_changes' ), 10, 0 );
 		add_action( 'citeoryx_daily_incremental_scan', array( $scheduler, 'run_incremental_scan' ) );
 		add_action( 'citeoryx_weekly_health_recalc', array( $scheduler, 'recalc_health' ) );
 		add_action( 'citeoryx_weekly_link_check', array( $scheduler, 'check_links' ) );

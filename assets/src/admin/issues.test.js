@@ -137,4 +137,84 @@ describe( 'Issues request ordering', () => {
 		} );
 		expect( container.textContent ).toContain( 'CX_TEST_REQUEST_ORDER' );
 	} );
+
+	it( 'refreshes the current page when a pending update finishes after navigation', async () => {
+		const update = deferred();
+		apiFetch.mockImplementation( ( options ) => {
+			if ( options.method === 'PATCH' ) {
+				return update.promise;
+			}
+			const page = Number(
+				new URLSearchParams( options.path.split( '?' )[ 1 ] ).get(
+					'page'
+				)
+			);
+			return Promise.resolve( {
+				data: {
+					items: [
+						{ ...issue, status: 'open', title: `Page ${ page }` },
+					],
+					total: 60,
+				},
+			} );
+		} );
+		const click = async ( label ) => {
+			await act( async () => {
+				Array.from( container.querySelectorAll( 'button' ) )
+					.find( ( button ) => button.textContent === label )
+					.click();
+			} );
+		};
+		await act( async () => root.render( <Issues /> ) );
+		await click( '下一页' );
+		await click( '解决' );
+		await click( '下一页' );
+		await act( async () => update.resolve( { data: issue } ) );
+		expect( apiFetch.mock.calls.at( -1 )[ 0 ].path ).toContain( 'page=3' );
+		expect( container.textContent ).toContain( 'Page 3' );
+	} );
+
+	it( 'returns to the last available page after resolving its only item', async () => {
+		let total = 21;
+		apiFetch.mockImplementation( ( options ) => {
+			if ( options.method === 'PATCH' ) {
+				total = 20;
+				return Promise.resolve( { data: issue } );
+			}
+			const page = Number(
+				new URLSearchParams( options.path.split( '?' )[ 1 ] ).get(
+					'page'
+				)
+			);
+			return Promise.resolve( {
+				data: {
+					items:
+						page === 2 && total === 20
+							? []
+							: [
+									{
+										...issue,
+										status: 'open',
+										title: `Remaining page ${ page }`,
+									},
+							  ],
+					total,
+				},
+			} );
+		} );
+		await act( async () => root.render( <Issues /> ) );
+		await act( async () => {
+			Array.from( container.querySelectorAll( 'button' ) )
+				.find( ( button ) => button.textContent === '下一页' )
+				.click();
+		} );
+		await act( async () => {
+			Array.from( container.querySelectorAll( 'button' ) )
+				.find( ( button ) => button.textContent === '解决' )
+				.click();
+		} );
+		expect( apiFetch.mock.calls.at( -1 )[ 0 ].path ).toContain( 'page=1' );
+		expect( container.textContent ).toContain( 'Remaining page 1' );
+		expect( container.textContent ).not.toContain( '当前没有待处理的问题' );
+	} );
 } );

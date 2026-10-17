@@ -15,6 +15,37 @@ use Citeoryx\Infrastructure\Cache\RestResponseCache;
 class ContentRepository {
 
 	/**
+	 * 按不可变 ID 游标读取固定时间窗口内修改的文章。
+	 *
+	 * @param array<string> $post_types 内容类型。
+	 * @param string        $since 窗口起点（站点时间，包含）。
+	 * @param string        $until 窗口终点（站点时间，包含）。
+	 * @param int           $after_id 已处理的文章 ID。
+	 * @return array<int>
+	 */
+	public function modified_post_ids( array $post_types, string $since, string $until, int $after_id = 0 ): array {
+		global $wpdb;
+		if ( empty( $post_types ) ) {
+			return array();
+		}
+
+		$placeholders = implode( ', ', array_fill( 0, count( $post_types ), '%s' ) );
+		// 占位符数量来自内容类型列表，值全部通过 prepare 绑定。
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+		$ids = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT ID FROM %i WHERE ID > %d AND post_modified >= %s AND post_modified <= %s
+				AND post_status IN ('publish', 'future', 'draft', 'private')
+				AND post_type IN ({$placeholders}) ORDER BY ID ASC LIMIT 100",
+				...array_merge( array( $wpdb->posts, max( 0, $after_id ), $since, $until ), $post_types )
+			)
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+
+		return array_map( 'intval', $ids ?: array() );
+	}
+
+	/**
 	 * Get table name.
 	 *
 	 * @return string

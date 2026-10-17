@@ -22,6 +22,7 @@ class Deactivator {
 	public static function deactivate(): void {
 		$timestamps = array(
 			'citeoryx_hourly_change_detection',
+			'citeoryx_change_detection_batch',
 			'citeoryx_daily_incremental_scan',
 			'citeoryx_weekly_health_recalc',
 			'citeoryx_weekly_link_check',

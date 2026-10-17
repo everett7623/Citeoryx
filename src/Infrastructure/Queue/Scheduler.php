@@ -54,27 +54,42 @@ class Scheduler {
 			return;
 		}
 
-		$since = get_option( 'citeoryx_last_change_detection', gmdate( 'Y-m-d H:i:s', strtotime( '-1 hour' ) ) );
-		$posts = get_posts(
-			array(
-				'post_type'      => $this->scanner->get_scan_post_types(),
-				'post_status'    => array( 'publish', 'future', 'draft', 'private' ),
-				'posts_per_page' => 100,
-				'fields'         => 'ids',
-				'date_query'     => array(
-					array(
-						'column' => 'post_modified',
-						'after'  => $since,
-					),
-				),
-			)
+		$window = get_option( 'citeoryx_change_detection_window', array() );
+		if ( empty( $window ) ) {
+			$window = array(
+				'since'      => get_option( 'citeoryx_last_change_detection', current_datetime()->modify( '-1 hour' )->format( 'Y-m-d H:i:s' ) ),
+				'until'      => current_time( 'mysql' ),
+				'after_id'   => 0,
+				'post_types' => $this->scanner->get_scan_post_types(),
+			);
+			update_option( 'citeoryx_change_detection_window', $window, false );
+		}
+		$posts = $this->content_repo->modified_post_ids(
+			$window['post_types'],
+			$window['since'],
+			$window['until'],
+			$window['after_id']
 		);
 
 		foreach ( $posts as $post_id ) {
-			$this->schedule_single_scan( (int) $post_id );
+			if ( ! $this->schedule_single_scan( (int) $post_id ) ) {
+				return;
+			}
 		}
 
-		update_option( 'citeoryx_last_change_detection', current_time( 'mysql' ) );
+		if ( count( $posts ) === 100 ) {
+			$window['after_id'] = (int) end( $posts );
+			update_option( 'citeoryx_change_detection_window', $window, false );
+			if ( function_exists( 'as_enqueue_async_action' ) ) {
+				as_enqueue_async_action( 'citeoryx_change_detection_batch', array( 'after_id' => $window['after_id'] ), 'citeoryx', true );
+			} else {
+				wp_schedule_single_event( time() + 1, 'citeoryx_change_detection_batch', array( 'after_id' => $window['after_id'] ) );
+			}
+			return;
+		}
+
+		update_option( 'citeoryx_last_change_detection', $window['until'] );
+		delete_option( 'citeoryx_change_detection_window' );
 	}
 
 	/**
@@ -91,10 +106,11 @@ class Scheduler {
 			return $running;
 		}
 
-		$modified_after = 'incremental' === $scan_type
+		$scan_started_at = current_time( 'mysql' );
+		$modified_after  = 'incremental' === $scan_type
 			? (string) get_option( 'citeoryx_last_incremental_scan', '' )
 			: '';
-		$post_types     = $this->scanner->get_scan_post_types( (array) ( $config['post_types'] ?? array() ) );
+		$post_types      = $this->scanner->get_scan_post_types( (array) ( $config['post_types'] ?? array() ) );
 
 		$run               = new ScanRun();
 		$run->scan_type    = $scan_type;
@@ -104,9 +120,10 @@ class Scheduler {
 		$run->config       = array_merge(
 			$config,
 			array(
-				'post_types'     => $post_types,
-				'offset'         => 0,
-				'modified_after' => $modified_after,
+				'post_types'      => $post_types,
+				'offset'          => 0,
+				'modified_after'  => $modified_after,
+				'scan_started_at' => $scan_started_at,
 			)
 		);
 
@@ -167,7 +184,10 @@ class Scheduler {
 
 			if ( $batch['complete'] ) {
 				if ( 'incremental' === $run->scan_type ) {
-					update_option( 'citeoryx_last_incremental_scan', current_time( 'mysql' ) );
+					// Preserve edits made while this run was queued or processing.
+					if ( ! empty( $config['scan_started_at'] ) && 0 === $failed ) {
+						update_option( 'citeoryx_last_incremental_scan', $config['scan_started_at'] );
+					}
 				}
 				do_action( 'citeoryx_scan_completed', $run_id );
 				return;
@@ -282,13 +302,16 @@ class Scheduler {
 		}
 	}
 
-	private function schedule_single_scan( int $post_id ): void {
+	private function schedule_single_scan( int $post_id ): bool {
 		if ( function_exists( 'as_enqueue_async_action' ) ) {
-			as_enqueue_async_action( 'citeoryx_scan_single_post', array( 'post_id' => $post_id ), 'citeoryx', true );
-			return;
+			if ( function_exists( 'as_has_scheduled_action' ) && as_has_scheduled_action( 'citeoryx_scan_single_post', array( 'post_id' => $post_id ), 'citeoryx' ) ) {
+				return true;
+			}
+			return (int) as_enqueue_async_action( 'citeoryx_scan_single_post', array( 'post_id' => $post_id ), 'citeoryx', true ) > 0;
 		}
 
-		wp_schedule_single_event( time() + 1, 'citeoryx_scan_single_post', array( 'post_id' => $post_id ) );
+		return wp_next_scheduled( 'citeoryx_scan_single_post', array( 'post_id' => $post_id ) )
+			|| wp_schedule_single_event( time() + 1, 'citeoryx_scan_single_post', array( 'post_id' => $post_id ) );
 	}
 
 	private function schedule_run( int $run_id ): bool {

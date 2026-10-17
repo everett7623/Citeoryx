@@ -1,8 +1,8 @@
 # Citeoryx 开发进度
 
-> 最后更新：2026-10-13
+> 最后更新：2026-10-16
 
-> 当前发布版本：2.4.0
+> 当前发布版本：2.4.1
 > 下一开发目标：2.5.0
 
 ## 已完成功能
@@ -200,6 +200,63 @@
    - 内链建议（已完成首版：公开候选、已链接去重、标题/焦点关键词本地相关性评分、语言过滤与人工锚文本）
    - 发布后效果验证（已完成首版：显式验证扫描固化时间点、7/28 天等长自然日窗口、GSC/Bing 来源分开展示与收集状态）
    - 完成与发布后验证（已完成首版：提案哈希状态机、发布状态识别、扫描内容哈希验证、偏离提案告警与权限控制）
+
+## 目录结构优化方案（待确认，尚未执行）
+
+记录日期：2026-10-16。用户要求先记录方案，稍后确认后再执行；本节不代表已授权移动文件或调整构建配置。
+
+### 目标目录
+
+```text
+Citeoryx/
+├── citeoryx.php          # WordPress 插件入口
+├── uninstall.php
+├── readme.txt
+├── README.md
+├── CHANGELOG.md
+├── src/                 # PHP 后端，保留现有分层
+├── assets/
+│   ├── src/admin/
+│   │   ├── App.js
+│   │   ├── index.js
+│   │   ├── features/    # 按业务功能归组页面、专属组件、工具和测试
+│   │   ├── components/  # 跨功能共享组件
+│   │   └── utils/       # 通用工具
+│   └── build/           # 前端编译产物
+├── tests/
+│   ├── Unit/            # 独立于 WordPress 环境的 PHP 单元测试
+│   ├── Integration/     # 依赖真实 WordPress 的 PHP 测试
+│   └── e2e/             # Playwright 测试
+├── bin/                 # 检查、测试环境及发布脚本
+├── docs/                # 归拢现有技术文档和案例
+├── dist/
+│   └── citeoryx.zip     # 最终插件安装包
+└── .cache/              # 日志、临时文件与测试报告
+```
+
+工具配置文件继续保留在各工具默认识别的位置。上述树仅展示主要职责目录，不是完整文件清单。
+
+### 拟调整清单
+
+| 当前分布 | 拟调整位置与原则 |
+|---|---|
+| 根目录中的 API、架构、数据库、测试、开发进度及产品需求文档 | 归入 `docs/`，保留内容并同步更新相对链接 |
+| `references/` 案例 | 归入 `docs/references/` |
+| `assets/src/admin/components/` 中的页面及业务专属组件、根层业务工具与测试 | 归入 `features/` 下的 dashboard、inventory、issues、optimizer、integrations、reports、planning、settings、onboarding 等功能目录；跨功能测试另行核对归属 |
+| 真正共享的前端组件和工具 | 分别归入 `components/`、`utils/`，避免为了分类增加抽象 |
+| `tests/Unit/` 中依赖 WordPress bootstrap 的测试 | 移入 `tests/Integration/`；独立测试保留在 `tests/Unit/` |
+| 根目录 `e2e/` | 移入 `tests/e2e/`，同步调整 Playwright 配置、认证状态路径与辅助脚本 |
+| `.codex/build-release.ps1`、`.codex/verify-release.ps1` | 迁入受版本控制的 `bin/`，默认安装包路径统一为 `dist/citeoryx.zip` |
+| 根目录日志、临时输出和测试报告 | 按实际用途归入 `.cache/`，同步调整输出路径和 Git 忽略规则 |
+
+### 执行与验收约束
+
+1. 等待用户明确确认后才执行结构调整；保留现有未提交的 2.4.1 修改。
+2. 执行前核对完整文件映射及引用关系，确认共享组件、跨功能测试和生成物的实际归属。
+3. 同步更新 import、文档链接、PHPUnit/Playwright 配置、CI、项目一致性检查及发布脚本路径。
+4. 保持 PHP 命名空间、后端分层、业务行为及 WordPress 安装包内的插件目录结构。
+5. 不新增方案文档副本，不擅自删除来源不明的本地文件。
+6. 调整后运行受影响测试、lint、版本一致性检查和生产构建；说明环境限制，重新生成并校验 `dist/citeoryx.zip`。
 
 ## 部署备忘
 
